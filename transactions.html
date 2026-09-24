@@ -26,8 +26,10 @@ body { background-color: #f7f6f2; color: #1f302b; display: flex; height: 100vh; 
 .user-profile { display: flex; align-items: center; gap: 12px; cursor: pointer; padding: 10px; border-radius: 12px; transition: 0.2s; text-decoration: none; color: inherit; background: rgba(227, 235, 227, 0.6); border: 1px solid rgba(220, 228, 220, 0.6); margin-bottom: 24px; }
 .user-profile:hover { background: #e3ebe3; }
 
-.avatar { width: 36px; height: 36px; background: #3b574a; color: white; border-radius: 50%; display: flex; align-items: center; justify-content: center; font-weight: bold; font-size: 15px; flex-shrink: 0; overflow: hidden; }
-.brand-title { font-weight: 700; font-size: 14px; color: #1f302b; line-height: 1.2; white-space: nowrap; overflow: hidden; text-overflow: ellipsis; }
+.avatar { width: 36px; height: 36px; background: #3b574a; color: white; border-radius: 50%; display: flex; align-items: center; justify-content: center; font-weight: bold; font-size: 15px; flex-shrink: 0; overflow: hidden; object-fit: cover; }
+.avatar img { width: 100%; height: 100%; object-fit: cover; }
+
+.brand-title { font-weight: 700; font-size: 14px; color: #1f302b; line-height: 1.2; white-space: nowrap; overflow: hidden; text-overflow: ellipsis; max-width: 140px; }
 .brand-sub { font-size: 12px; color: #697d75; }
 
 .nav-section-title { font-size: 11px; font-weight: 700; color: #8e9f97; letter-spacing: 1px; margin-bottom: 12px; }
@@ -210,7 +212,7 @@ tbody tr:hover { background-color: #f7faf8; }
 <button class="close-btn" onclick="closeModal()">×</button>
 <div class="modal-title" id="modalTitle">Add New Entry</div>
 <form onsubmit="saveEntry(event)">
-<input type="hidden" id="editIndex" value="-1">
+<input type="hidden" id="editDocId" value="">
 
 <div class="form-group">
 <label>Type</label>
@@ -247,277 +249,304 @@ tbody tr:hover { background-color: #f7faf8; }
 </div>
 
 <!-- =========================
-FIREBASE & APP LOGIC
+FIREBASE AUTH & FIRESTORE SYNC
 ========================= -->
 <script type="module">
 import { initializeApp } from "https://www.gstatic.com/firebasejs/10.8.0/firebase-app.js";
-import { getFirestore } from "https://www.gstatic.com/firebasejs/10.8.0/firebase-firestore.js";
+import { getAuth, onAuthStateChanged } from "https://www.gstatic.com/firebasejs/10.8.0/firebase-auth.js";
+import { getFirestore, doc, getDoc, collection, getDocs, addDoc, updateDoc, deleteDoc } from "https://www.gstatic.com/firebasejs/10.8.0/firebase-firestore.js";
 
 const firebaseConfig = {
-apiKey: "AIzaSyDKXFjTwZ92ITi-s4Sbph_bjNjuvkNQOb4",
-authDomain: "wispend-1234.firebaseapp.com",
-projectId: "wispend-1234",
-storageBucket: "wispend-1234.firebasestorage.app",
-messagingSenderId: "227503315553",
-appId: "1:227503315553:web:a913fdcab269787e926820",
-measurementId: "G-L3S3EK3Q1Z"
+  apiKey: "AIzaSyDKXFjTwZ92ITi-s4Sbph_bjNjuvkNQOb4",
+  authDomain: "wispend-1234.firebaseapp.com",
+  projectId: "wispend-1234",
+  storageBucket: "wispend-1234.firebasestorage.app",
+  messagingSenderId: "227503315553",
+  appId: "1:227503315553:web:a913fdcab269787e926820",
+  measurementId: "G-L3S3EK3Q1Z"
 };
 
 const app = initializeApp(firebaseConfig);
+const auth = getAuth(app);
 const db = getFirestore(app);
 
-const currentUser = JSON.parse(localStorage.getItem("wispendCurrentUser"));
-if (!currentUser) {
-alert("Please login first!");
-window.location.href = "index.html";
-}
-</script>
-
-<script>
+let currentUid = null;
 let selectedYear = new Date().getFullYear();
 let activeTypeFilter = 'All';
+let cachedEntries = [];
+let cachedInvoices = [];
 
-window.onload = function() {
-loadUserData();
-initCategories();
-document.getElementById('entryDate').valueAsDate = new Date();
-renderTransactions();
+onAuthStateChanged(auth, async (user) => {
+    if (user) {
+        currentUid = user.uid;
+        await loadUserData(user);
+        await initCategories();
+        await fetchCloudData();
+        document.getElementById('entryDate').valueAsDate = new Date();
+    } else {
+        alert("Please login first!");
+        window.location.href = "index.html";
+    }
+});
+
+async function loadUserData(user) {
+    try {
+        const userDocRef = doc(db, "users", user.uid);
+        const userSnap = await getDoc(userDocRef);
+
+        let name = user.displayName || user.email.split('@')[0];
+        let avatar = "";
+
+        if (userSnap.exists()) {
+            const data = userSnap.data();
+            name = data.name || name;
+            avatar = data.avatar || "";
+        }
+
+        document.getElementById("userNameDisplay").textContent = name;
+        const avatarEl = document.getElementById("userAvatar");
+        if (avatar) {
+            avatarEl.innerHTML = `<img src="${avatar}" alt="Avatar">`;
+        } else {
+            avatarEl.textContent = name.charAt(0).toUpperCase();
+        }
+    } catch (error) {
+        console.error("Error loading user profile:", error);
+    }
+}
+
+async function initCategories() {
+    let savedCats = ["Invoice", "Sales", "Facilities", "Logistics", "Payroll", "Others"];
+    try {
+        const catDoc = await getDoc(doc(db, "users", currentUid, "settings", "categories"));
+        if (catDoc.exists() && catDoc.data().list) {
+            savedCats = catDoc.data().list;
+        }
+    } catch (e) {
+        console.log("Using default categories");
+    }
+
+    const filterSelect = document.getElementById("categoryFilter");
+    filterSelect.innerHTML = '<option value="All">All categories</option>';
+    const entrySelect = document.getElementById("entryCategory");
+    entrySelect.innerHTML = '';
+
+    savedCats.forEach(cat => {
+        filterSelect.innerHTML += `<option value="${cat}">${cat}</option>`;
+        entrySelect.innerHTML += `<option value="${cat}">${cat}</option>`;
+    });
+}
+
+async function fetchCloudData() {
+    try {
+        // 获取 entries
+        const entriesSnap = await getDocs(collection(db, "users", currentUid, "entries"));
+        cachedEntries = [];
+        entriesSnap.forEach(docSnap => {
+            cachedEntries.push({ id: docSnap.id, ...docSnap.data() });
+        });
+
+        // 获取 invoices 用于校验状态
+        const invoicesSnap = await getDocs(collection(db, "users", currentUid, "invoices"));
+        cachedInvoices = [];
+        invoicesSnap.forEach(docSnap => {
+            cachedInvoices.push({ id: docSnap.id, ...docSnap.data() });
+        });
+
+        renderTransactions();
+    } catch (error) {
+        console.error("Error fetching cloud data:", error);
+    }
+}
+
+window.changeYear = function(delta) {
+    selectedYear += delta;
+    document.getElementById("yearDisplay").textContent = selectedYear;
+    renderTransactions();
 };
 
-function loadUserData() {
-const currentUser = JSON.parse(localStorage.getItem("wispendCurrentUser"));
-if (currentUser && currentUser.name) {
-document.getElementById("userNameDisplay").textContent = currentUser.name;
-
-const avatarEl = document.getElementById("userAvatar");
-if (currentUser.avatar) {
-avatarEl.innerHTML = `<img src="${currentUser.avatar}" alt="Avatar" style="width:100%; height:100%; object-fit:cover; border-radius:50%;">`;
-} else {
-avatarEl.textContent = currentUser.name.charAt(0).toUpperCase();
-}
-} else {
-window.location.href = "index.html";
-}
-}
-
-function initCategories() {
-const savedCats = JSON.parse(localStorage.getItem("wispendCategories")) || ["Invoice", "Sales", "Facilities", "Logistics", "Payroll", "Others"];
-const filterSelect = document.getElementById("categoryFilter");
-filterSelect.innerHTML = '<option value="All">All categories</option>';
-const entrySelect = document.getElementById("entryCategory");
-entrySelect.innerHTML = '';
-
-savedCats.forEach(cat => {
-filterSelect.innerHTML += `<option value="${cat}">${cat}</option>`;
-entrySelect.innerHTML += `<option value="${cat}">${cat}</option>`;
-});
-}
-
-function changeYear(delta) {
-selectedYear += delta;
-document.getElementById("yearDisplay").textContent = selectedYear;
-renderTransactions();
-}
-
-function setTypeFilter(type, btnElement) {
-activeTypeFilter = type;
-document.querySelectorAll('.tab-btn').forEach(btn => btn.classList.remove('active'));
-btnElement.classList.add('active');
-renderTransactions();
-}
-
-function getEntries() {
-const raw1 = localStorage.getItem("wispendEntries");
-const raw2 = localStorage.getItem("wispend_transactions");
-if (raw1) return JSON.parse(raw1);
-if (raw2) return JSON.parse(raw2);
-return [];
-}
-
-function saveEntries(entries) {
-localStorage.setItem("wispendEntries", JSON.stringify(entries));
-localStorage.setItem("wispend_transactions", JSON.stringify(entries));
-}
+window.setTypeFilter = function(type, btnElement) {
+    activeTypeFilter = type;
+    document.querySelectorAll('.tab-btn').forEach(btn => btn.classList.remove('active'));
+    btnElement.classList.add('active');
+    renderTransactions();
+};
 
 function getInvoiceStatus(item) {
-const invoices = JSON.parse(localStorage.getItem("wispendInvoices") || localStorage.getItem("wispend_invoices") || "[]");
-const matched = invoices.find(inv => 
-(inv.number && item.desc && item.desc.includes(inv.number)) || 
-(inv.company && item.desc && item.desc.toLowerCase().includes(inv.company.toLowerCase())) ||
-(item.invoiceId && String(item.invoiceId) === String(inv.id))
-);
+    const matched = cachedInvoices.find(inv => 
+        (inv.number && item.desc && item.desc.includes(inv.number)) || 
+        (inv.company && item.desc && item.desc.toLowerCase().includes(inv.company.toLowerCase())) ||
+        (item.invoiceId && String(item.invoiceId) === String(inv.id))
+    );
 
-if (matched) {
-const today = new Date();
-today.setHours(0,0,0,0);
-const due = new Date(matched.dueDate);
-if (matched.status !== 'Paid' && due < today) return 'Overdue';
-return matched.status || 'Pending';
-}
-return item.status || 'Pending';
-}
-
-function renderTransactions() {
-const allEntries = getEntries();
-const selectedCategory = document.getElementById("categoryFilter").value;
-const searchKeyword = document.getElementById("searchInput").value.trim().toLowerCase();
-
-let filtered = allEntries.map((e, idx) => ({...e, globalIndex: idx})).filter(e => {
-if (!e.date) return false;
-const d = new Date(e.date);
-return d.getFullYear() === selectedYear;
-});
-
-if (activeTypeFilter !== 'All') {
-filtered = filtered.filter(e => e.type === activeTypeFilter);
+    if (matched) {
+        const today = new Date();
+        today.setHours(0,0,0,0);
+        const due = new Date(matched.dueDate);
+        if (matched.status !== 'Paid' && due < today) return 'Overdue';
+        return matched.status || 'Pending';
+    }
+    return item.status || 'Pending';
 }
 
-if (selectedCategory !== 'All') {
-filtered = filtered.filter(e => e.category === selectedCategory);
-}
+window.renderTransactions = function() {
+    const selectedCategory = document.getElementById("categoryFilter").value;
+    const searchKeyword = document.getElementById("searchInput").value.trim().toLowerCase();
 
-if (searchKeyword !== '') {
-filtered = filtered.filter(e => {
-const descMatch = e.desc && e.desc.toLowerCase().includes(searchKeyword);
-const amountMatch = e.amount && (parseFloat(e.amount).toFixed(2).toString().includes(searchKeyword) || e.amount.toString().includes(searchKeyword));
-return descMatch || amountMatch;
-});
-}
+    let filtered = cachedEntries.filter(e => {
+        if (!e.date) return false;
+        const d = new Date(e.date);
+        return d.getFullYear() === selectedYear;
+    });
 
-filtered.sort((a, b) => new Date(b.date) - new Date(a.date));
+    if (activeTypeFilter !== 'All') {
+        filtered = filtered.filter(e => e.type === activeTypeFilter);
+    }
 
-document.getElementById("transactionSubText").textContent = `${filtered.length} postings · Full Year ${selectedYear}`;
+    if (selectedCategory !== 'All') {
+        filtered = filtered.filter(e => e.category === selectedCategory);
+    }
 
-const tbody = document.getElementById("transactionTableBody");
-tbody.innerHTML = "";
+    if (searchKeyword !== '') {
+        filtered = filtered.filter(e => {
+            const descMatch = e.desc && e.desc.toLowerCase().includes(searchKeyword);
+            const amountMatch = e.amount && (parseFloat(e.amount).toFixed(2).toString().includes(searchKeyword) || e.amount.toString().includes(searchKeyword));
+            return descMatch || amountMatch;
+        });
+    }
 
-if (filtered.length === 0) {
-tbody.innerHTML = `<tr><td colspan="4" style="text-align: center; color: #8e9f97; padding: 30px;">No transactions found for ${selectedYear}</td></tr>`;
-return;
-}
+    filtered.sort((a, b) => new Date(b.date) - new Date(a.date));
 
-filtered.forEach(e => {
-const tr = document.createElement("tr");
-tr.onclick = () => openEditModal(e.globalIndex);
+    document.getElementById("transactionSubText").textContent = `${filtered.length} postings · Full Year ${selectedYear}`;
 
-const dateObj = new Date(e.date);
-const formattedDate = isNaN(dateObj.getTime()) ? e.date : dateObj.toLocaleDateString('en-US', { month: 'short', day: '2-digit' });
+    const tbody = document.getElementById("transactionTableBody");
+    tbody.innerHTML = "";
 
-const catClass = ['Sales', 'Invoice', 'Facilities', 'Logistics', 'Payroll'].includes(e.category) ? `cat-${e.category}` : 'cat-Default';
+    if (filtered.length === 0) {
+        tbody.innerHTML = `<tr><td colspan="4" style="text-align: center; color: #8e9f97; padding: 30px;">No transactions found for ${selectedYear}</td></tr>`;
+        return;
+    }
 
-let statusHTML = '';
-if (e.category === 'Invoice') {
-const currentStatus = getInvoiceStatus(e);
-const statusClass = `status-${currentStatus.toLowerCase()}`;
-statusHTML = `<span class="status-tag ${statusClass}">${currentStatus}</span>`;
-}
+    filtered.forEach(e => {
+        const tr = document.createElement("tr");
+        tr.onclick = () => openEditModal(e.id);
 
-tr.innerHTML = `
-<td style="color: #697d75; font-weight: 500;">${formattedDate}</td>
-<td style="font-weight: 600; color: #1f302b;">${e.desc}</td>
-<td>
-<span class="cat-tag ${catClass}">${e.category}</span>
-${statusHTML}
-</td>
-<td style="text-align: right;" class="${e.type === 'Income' ? 'amt-income' : 'amt-expense'}">
-${e.type === 'Income' ? '+' : '-'}RM ${parseFloat(e.amount || 0).toLocaleString('en-US', {minimumFractionDigits: 2, maximumFractionDigits: 2})}
-</td>
-`;
-tbody.appendChild(tr);
-});
-}
+        const dateObj = new Date(e.date);
+        const formattedDate = isNaN(dateObj.getTime()) ? e.date : dateObj.toLocaleDateString('en-US', { month: 'short', day: '2-digit' });
 
-function openAddModal() {
-document.getElementById("modalTitle").textContent = "Add New Entry";
-document.getElementById("editIndex").value = "-1";
-document.getElementById("saveBtn").textContent = "Save Entry";
-document.getElementById("deleteBtn").style.display = "none";
-document.querySelector("#entryModal form").reset();
-document.getElementById('entryDate').valueAsDate = new Date();
-document.getElementById("entryModal").classList.add("active");
-}
+        const catClass = ['Sales', 'Invoice', 'Facilities', 'Logistics', 'Payroll'].includes(e.category) ? `cat-${e.category}` : 'cat-Default';
 
-function openEditModal(index) {
-const entries = getEntries();
-const item = entries[index];
-if (!item) return;
+        let statusHTML = '';
+        if (e.category === 'Invoice') {
+            const currentStatus = getInvoiceStatus(e);
+            const statusClass = `status-${currentStatus.toLowerCase()}`;
+            statusHTML = `<span class="status-tag ${statusClass}">${currentStatus}</span>`;
+        }
 
-document.getElementById("modalTitle").textContent = "Edit Entry";
-document.getElementById("editIndex").value = index;
-document.getElementById("entryType").value = item.type || 'Income';
-document.getElementById("entryDesc").value = item.desc || '';
-document.getElementById("entryAmount").value = item.amount || '';
-document.getElementById("entryDate").value = item.date || '';
-document.getElementById("entryCategory").value = item.category || 'Sales';
-
-document.getElementById("saveBtn").textContent = "Update Entry";
-document.getElementById("deleteBtn").style.display = "block";
-document.getElementById("entryModal").classList.add("active");
-}
-
-function saveEntry(event) {
-event.preventDefault();
-const editIndex = parseInt(document.getElementById("editIndex").value);
-const entries = getEntries();
-
-const entryData = {
-type: document.getElementById("entryType").value,
-desc: document.getElementById("entryDesc").value,
-amount: document.getElementById("entryAmount").value,
-date: document.getElementById("entryDate").value,
-category: document.getElementById("entryCategory").value
+        tr.innerHTML = `
+            <td style="color: #697d75; font-weight: 500;">${formattedDate}</td>
+            <td style="font-weight: 600; color: #1f302b;">${e.desc}</td>
+            <td>
+                <span class="cat-tag ${catClass}">${e.category}</span>
+                ${statusHTML}
+            </td>
+            <td style="text-align: right;" class="${e.type === 'Income' ? 'amt-income' : 'amt-expense'}">
+                ${e.type === 'Income' ? '+' : '-'}RM ${parseFloat(e.amount || 0).toLocaleString('en-US', {minimumFractionDigits: 2, maximumFractionDigits: 2})}
+            </td>
+        `;
+        tbody.appendChild(tr);
+    });
 };
 
-if (editIndex === -1) {
-entryData.id = Date.now();
-entries.unshift(entryData);
-} else {
-entryData.id = entries[editIndex].id || Date.now();
-entries[editIndex] = entryData;
-}
+window.openAddModal = function() {
+    document.getElementById("modalTitle").textContent = "Add New Entry";
+    document.getElementById("editDocId").value = "";
+    document.getElementById("saveBtn").textContent = "Save Entry";
+    document.getElementById("deleteBtn").style.display = "none";
+    document.querySelector("#entryModal form").reset();
+    document.getElementById('entryDate').valueAsDate = new Date();
+    document.getElementById("entryModal").classList.add("active");
+};
 
-saveEntries(entries);
-closeModal();
-renderTransactions();
-}
+window.openEditModal = function(docId) {
+    const item = cachedEntries.find(e => e.id === docId);
+    if (!item) return;
 
-function deleteEntry() {
-const editIndex = parseInt(document.getElementById("editIndex").value);
-if (editIndex !== -1) {
-const reason = prompt("Please enter the reason for deletion:");
-if (reason === null) return; 
+    document.getElementById("modalTitle").textContent = "Edit Entry";
+    document.getElementById("editDocId").value = docId;
+    document.getElementById("entryType").value = item.type || 'Income';
+    document.getElementById("entryDesc").value = item.desc || '';
+    document.getElementById("entryAmount").value = item.amount || '';
+    document.getElementById("entryDate").value = item.date || '';
+    document.getElementById("entryCategory").value = item.category || 'Sales';
 
-const entries = getEntries();
-const deletedItem = entries[editIndex];
+    document.getElementById("saveBtn").textContent = "Update Entry";
+    document.getElementById("deleteBtn").style.display = "block";
+    document.getElementById("entryModal").classList.add("active");
+};
 
-const history = JSON.parse(localStorage.getItem("wispendHistory") || "[]");
-history.push({
-action: 'Delete Transaction',
-description: deletedItem.desc,
-amount: deletedItem.amount,
-type: deletedItem.type,
-reason: reason.trim() || 'No reason provided',
-timestamp: new Date().toLocaleString()
-});
-localStorage.setItem("wispendHistory", JSON.stringify(history));
+window.saveEntry = async function(event) {
+    event.preventDefault();
+    const editDocId = document.getElementById("editDocId").value;
 
-entries.splice(editIndex, 1);
-saveEntries(entries);
-closeModal();
-renderTransactions();
-}
-}
+    const entryData = {
+        type: document.getElementById("entryType").value,
+        desc: document.getElementById("entryDesc").value,
+        amount: parseFloat(document.getElementById("entryAmount").value) || 0,
+        date: document.getElementById("entryDate").value,
+        category: document.getElementById("entryCategory").value,
+        createdAt: new Date().toISOString()
+    };
 
-function closeModal() { 
-document.getElementById("entryModal").classList.remove("active"); 
-}
+    try {
+        const entriesCol = collection(db, "users", currentUid, "entries");
+        if (!editDocId) {
+            await addDoc(entriesCol, entryData);
+        } else {
+            await updateDoc(doc(db, "users", currentUid, "entries", editDocId), entryData);
+        }
 
-window.addEventListener('storage', function(e) {
-if (e.key === 'wispendEntries' || e.key === 'wispend_transactions' || e.key === 'wispendCurrentUser') {
-loadUserData();
-renderTransactions();
-}
-});
+        closeModal();
+        await fetchCloudData();
+    } catch (error) {
+        console.error("Error saving entry to cloud:", error);
+        alert("Failed to save entry: " + error.message);
+    }
+};
+
+window.deleteEntry = async function() {
+    const editDocId = document.getElementById("editDocId").value;
+    if (!editDocId) return;
+
+    const reason = prompt("Please enter the reason for deletion:");
+    if (reason === null) return; 
+
+    try {
+        const deletedItem = cachedEntries.find(e => e.id === editDocId);
+        if (deletedItem) {
+            // 记录到云端 history
+            await addDoc(collection(db, "users", currentUid, "history"), {
+                action: 'Delete Transaction',
+                description: deletedItem.desc,
+                amount: deletedItem.amount,
+                type: deletedItem.type,
+                reason: reason.trim() || 'No reason provided',
+                timestamp: new Date().toLocaleString()
+            });
+        }
+
+        await deleteDoc(doc(db, "users", currentUid, "entries", editDocId));
+        closeModal();
+        await fetchCloudData();
+    } catch (error) {
+        console.error("Error deleting entry:", error);
+        alert("Failed to delete entry: " + error.message);
+    }
+};
+
+window.closeModal = function() { 
+    document.getElementById("entryModal").classList.remove("active"); 
+};
 </script>
 
 </body>

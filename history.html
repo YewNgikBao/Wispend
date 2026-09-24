@@ -233,7 +233,7 @@ border-top: 1px solid transparent;
 }
 
 .history-card.expanded .history-details-body {
-max-height: 500px; /* 预留足够高度 */
+max-height: 500px;
 padding: 16px 20px;
 border-top-color: #e9ede9;
 }
@@ -265,13 +265,8 @@ border: 1px solid #e4e9e5;
 font-size: 13px;
 }
 
-.compare-box.old {
-border-left: 3px solid #d97706; 
-}
-
-.compare-box.new {
-border-left: 3px solid #3b574a; 
-}
+.compare-box.old { border-left: 3px solid #d97706; }
+.compare-box.new { border-left: 3px solid #3b574a; }
 
 .compare-title {
 font-size: 11px;
@@ -374,161 +369,219 @@ font-size: 14px;
 </div>
 </main>
 
-<script>
-window.onload = function() {
-loadUserData();
-renderHistory();
+<!-- Firebase 核心逻辑 (Module) -->
+<script type="module">
+import { initializeApp } from "https://www.gstatic.com/firebasejs/10.8.0/firebase-app.js";
+import { getAuth, onAuthStateChanged } from "https://www.gstatic.com/firebasejs/10.8.0/firebase-auth.js";
+import { 
+  getFirestore, 
+  collection, 
+  addDoc, 
+  getDocs, 
+  doc, 
+  deleteDoc, 
+  query, 
+  where 
+} from "https://www.gstatic.com/firebasejs/10.8.0/firebase-firestore.js";
+
+const firebaseConfig = {
+  apiKey: "AIzaSyDKXFjTwZ92ITi-s4Sbph_bjNjuvkNQOb4",
+  authDomain: "wispend-1234.firebaseapp.com",
+  projectId: "wispend-1234",
+  storageBucket: "wispend-1234.firebasestorage.app",
+  messagingSenderId: "227503315553",
+  appId: "1:227503315553:web:a913fdcab269787e926820",
+  measurementId: "G-L3S3EK3Q1Z"
 };
 
-function loadUserData() {
-const currentUser = JSON.parse(localStorage.getItem("wispendCurrentUser"));
-if (currentUser && currentUser.name) {
-document.getElementById("userNameDisplay").textContent = currentUser.name;
-const avatarEl = document.getElementById("userAvatar");
-if (currentUser.avatar) {
-avatarEl.innerHTML = `<img src="${currentUser.avatar}" alt="Avatar" style="width:100%; height:100%; object-fit:cover; border-radius:50%;">`;
-} else {
-avatarEl.textContent = currentUser.name.charAt(0).toUpperCase();
-}
-} else {
-window.location.href = "index.html";
-}
-}
+const app = initializeApp(firebaseConfig);
+const auth = getAuth(app);
+const db = getFirestore(app);
 
-function renderHistory() {
-const container = document.getElementById("historyContainer");
-let historyList = JSON.parse(localStorage.getItem("wispendHistory") || "[]");
+let allHistory = [];
 
-const now = new Date().getTime();
-const thirtyDaysMs = 30 * 24 * 60 * 60 * 1000;
+window.onload = function() {
+    onAuthStateChanged(auth, async (user) => {
+        if (user) {
+            loadUserData(user);
+            await loadHistoryFromCloud(user.uid);
+            renderHistory();
+        } else {
+            window.location.href = "index.html";
+        }
+    });
+};
 
-const validHistory = historyList.filter(item => {
-const timestamp = item.deletedAtTimestamp || item.timestamp || now;
-return (now - timestamp) < thirtyDaysMs;
-});
-
-if (validHistory.length !== historyList.length) {
-localStorage.setItem("wispendHistory", JSON.stringify(validHistory));
-}
-
-if (validHistory.length === 0) {
-container.innerHTML = `<div class="empty-state">No history records found in the last 30 days.</div>`;
-return;
+function loadUserData(user) {
+    const currentUser = JSON.parse(localStorage.getItem("wispendCurrentUser"));
+    const userName = currentUser ? currentUser.name : user.email.split('@')[0];
+    
+    document.getElementById("userNameDisplay").textContent = userName;
+    const avatarEl = document.getElementById("userAvatar");
+    
+    if (currentUser && currentUser.avatar) {
+        avatarEl.innerHTML = `<img src="${currentUser.avatar}" alt="Avatar" style="width:100%; height:100%; object-fit:cover; border-radius:50%;">`;
+    } else {
+        avatarEl.textContent = userName.charAt(0).toUpperCase();
+    }
 }
 
-container.innerHTML = "";
-
-validHistory.slice().reverse().forEach((item) => {
-const timestamp = item.deletedAtTimestamp || item.timestamp || now;
-const elapsedMs = now - timestamp;
-const remainingDays = Math.max(0, Math.ceil((thirtyDaysMs - elapsedMs) / (24 * 60 * 60 * 1000)));
-
-const card = document.createElement("div");
-card.className = "history-card";
-
-const entry = item.entry || item;
-const type = entry.type || 'Income';
-const isEdit = item.action === 'Edit Entry';
-const actionLabel = isEdit ? 'Edited' : 'Deleted';
-const actionBadgeStyle = isEdit ? 'background: #e1effe; color: #1e429f;' : 'background: #fde8e8; color: #c53929;';
-
-// 摘要栏展示的简短标题
-const summaryTitle = isEdit 
-  ? `Transaction Modification (${entry.title || entry.desc || 'Item'})` 
-  : `${entry.title || entry.desc || 'Untitled'} (${type})`;
-
-let detailsHTML = '';
-
-if (isEdit && item.oldEntry) {
-const oldE = item.oldEntry;
-const newE = entry;
-const oldAmountPrefix = oldE.type === 'Income' ? '+RM ' : '-RM ';
-const newAmountPrefix = newE.type === 'Income' ? '+RM ' : '-RM ';
-
-detailsHTML = `
-<div class="history-comparison">
-<div class="compare-box old">
-<div class="compare-title">📌 Before (原本账目)</div>
-<div><strong>Desc:</strong> ${oldE.title || oldE.desc || 'N/A'}</div>
-<div><strong>Type:</strong> ${oldE.type || 'N/A'}</div>
-<div><strong>Category:</strong> ${oldE.category || 'N/A'}</div>
-<div><strong>Amount:</strong> ${oldAmountPrefix}${parseFloat(oldE.amount || 0).toFixed(2)}</div>
-<div><strong>Date:</strong> ${oldE.date || 'N/A'}</div>
-</div>
-<div class="compare-box new">
-<div class="compare-title">✨ After (更改后)</div>
-<div><strong>Desc:</strong> ${newE.title || newE.desc || 'N/A'}</div>
-<div><strong>Type:</strong> ${newE.type || 'N/A'}</div>
-<div><strong>Category:</strong> ${newE.category || 'N/A'}</div>
-<div><strong>Amount:</strong> ${newAmountPrefix}${parseFloat(newE.amount || 0).toFixed(2)}</div>
-<div><strong>Date:</strong> ${newE.date || 'N/A'}</div>
-</div>
-</div>
-<div class="history-reason">
-<strong>Reason for editing:</strong> ${item.reason || 'No reason provided'}
-</div>
-<div class="history-meta">Logged Date: ${item.deletedAtDate || 'N/A'}</div>
-`;
-} else {
-const amountPrefix = type === 'Income' ? '+RM ' : '-RM ';
-detailsHTML = `
-<div class="history-meta">
-Amount: <strong>${amountPrefix}${parseFloat(entry.amount || 0).toFixed(2)}</strong> | Category: ${entry.category || 'General'} | Date: ${entry.date || 'N/A'}
-</div>
-<div class="history-reason">
-<strong>Reason for deletion:</strong> ${item.reason || 'No reason provided'}
-</div>
-<div class="history-action-footer">
-<span class="history-meta" style="margin-bottom:0;">Logged Date: ${item.deletedAtDate || 'N/A'}</span>
-<button class="btn-restore" onclick="restoreEntry(${item.id})">Restore Entry</button>
-</div>
-`;
+// 从云端 Firestore 获取当前用户的历史记录
+async function loadHistoryFromCloud(uid) {
+    try {
+        const q = query(collection(db, "history"), where("userId", "==", uid));
+        const querySnapshot = await getDocs(q);
+        allHistory = [];
+        querySnapshot.forEach((docSnap) => {
+            allHistory.push({ firestoreId: docSnap.id, ...docSnap.data() });
+        });
+    } catch (e) {
+        console.error("Error loading history from cloud: ", e);
+        allHistory = JSON.parse(localStorage.getItem("wispendHistory") || "[]");
+    }
 }
 
-card.innerHTML = `
-<div class="history-summary-header" onclick="toggleHistoryCard(this)">
-<div class="history-summary-left">
-<span class="history-badge" style="${actionBadgeStyle}">${actionLabel}</span>
-<span class="summary-title-text">${summaryTitle}</span>
-</div>
-<div class="history-summary-right">
-<span class="expire-text">Expires in ${remainingDays} days</span>
-<span class="expand-arrow">▼</span>
-</div>
-</div>
-<div class="history-details-body">
-${detailsHTML}
-</div>
-`;
+async function renderHistory() {
+    const container = document.getElementById("historyContainer");
+    const now = new Date().getTime();
+    const thirtyDaysMs = 30 * 24 * 60 * 60 * 1000;
 
-container.appendChild(card);
-});
+    // 过滤 30 天以内的记录
+    const validHistory = allHistory.filter(item => {
+        const timestamp = item.deletedAtTimestamp || item.timestamp || now;
+        return (now - timestamp) < thirtyDaysMs;
+    });
+
+    if (validHistory.length === 0) {
+        container.innerHTML = `<div class="empty-state">No history records found in the last 30 days.</div>`;
+        return;
+    }
+
+    container.innerHTML = "";
+
+    // 按时间倒序渲染
+    validHistory.slice().reverse().forEach((item) => {
+        const timestamp = item.deletedAtTimestamp || item.timestamp || now;
+        const elapsedMs = now - timestamp;
+        const remainingDays = Math.max(0, Math.ceil((thirtyDaysMs - elapsedMs) / (24 * 60 * 60 * 1000)));
+
+        const card = document.createElement("div");
+        card.className = "history-card";
+
+        const entry = item.entry || item;
+        const type = entry.type || 'Income';
+        const isEdit = item.action === 'Edit Entry';
+        const actionLabel = isEdit ? 'Edited' : 'Deleted';
+        const actionBadgeStyle = isEdit ? 'background: #e1effe; color: #1e429f;' : 'background: #fde8e8; color: #c53929;';
+
+        const summaryTitle = isEdit 
+            ? `Transaction Modification (${entry.title || entry.desc || 'Item'})` 
+            : `${entry.title || entry.desc || 'Untitled'} (${type})`;
+
+        let detailsHTML = '';
+
+        if (isEdit && item.oldEntry) {
+            const oldE = item.oldEntry;
+            const newE = entry;
+            const oldAmountPrefix = oldE.type === 'Income' ? '+RM ' : '-RM ';
+            const newAmountPrefix = newE.type === 'Income' ? '+RM ' : '-RM ';
+
+            detailsHTML = `
+                <div class="history-comparison">
+                    <div class="compare-box old">
+                        <div class="compare-title">📌 Before (原本账目)</div>
+                        <div><strong>Desc:</strong> ${oldE.title || oldE.desc || 'N/A'}</div>
+                        <div><strong>Type:</strong> ${oldE.type || 'N/A'}</div>
+                        <div><strong>Category:</strong> ${oldE.category || 'N/A'}</div>
+                        <div><strong>Amount:</strong> ${oldAmountPrefix}${parseFloat(oldE.amount || 0).toFixed(2)}</div>
+                        <div><strong>Date:</strong> ${oldE.date || 'N/A'}</div>
+                    </div>
+                    <div class="compare-box new">
+                        <div class="compare-title">✨ After (更改后)</div>
+                        <div><strong>Desc:</strong> ${newE.title || newE.desc || 'N/A'}</div>
+                        <div><strong>Type:</strong> ${newE.type || 'N/A'}</div>
+                        <div><strong>Category:</strong> ${newE.category || 'N/A'}</div>
+                        <div><strong>Amount:</strong> ${newAmountPrefix}${parseFloat(newE.amount || 0).toFixed(2)}</div>
+                        <div><strong>Date:</strong> ${newE.date || 'N/A'}</div>
+                    </div>
+                </div>
+                <div class="history-reason">
+                    <strong>Reason for editing:</strong> ${item.reason || 'No reason provided'}
+                </div>
+                <div class="history-meta">Logged Date: ${item.deletedAtDate || 'N/A'}</div>
+            `;
+        } else {
+            const amountPrefix = type === 'Income' ? '+RM ' : '-RM ';
+            detailsHTML = `
+                <div class="history-meta">
+                    Amount: <strong>${amountPrefix}${parseFloat(entry.amount || 0).toFixed(2)}</strong> | Category: ${entry.category || 'General'} | Date: ${entry.date || 'N/A'}
+                </div>
+                <div class="history-reason">
+                    <strong>Reason for deletion:</strong> ${item.reason || 'No reason provided'}
+                </div>
+                <div class="history-action-footer">
+                    <span class="history-meta" style="margin-bottom:0;">Logged Date: ${item.deletedAtDate || 'N/A'}</span>
+                    <button class="btn-restore" onclick="window.restoreEntry('${item.firestoreId}')">Restore Entry</button>
+                </div>
+            `;
+        }
+
+        card.innerHTML = `
+            <div class="history-summary-header" onclick="window.toggleHistoryCard(this)">
+                <div class="history-summary-left">
+                    <span class="history-badge" style="${actionBadgeStyle}">${actionLabel}</span>
+                    <span class="summary-title-text">${summaryTitle}</span>
+                </div>
+                <div class="history-summary-right">
+                    <span class="expire-text">Expires in ${remainingDays} days</span>
+                    <span class="expand-arrow">▼</span>
+                </div>
+            </div>
+            <div class="history-details-body">
+                ${detailsHTML}
+            </div>
+        `;
+
+        container.appendChild(card);
+    });
 }
 
 // 展开/收起切换函数
-function toggleHistoryCard(headerEl) {
-const card = headerEl.parentElement;
-card.classList.toggle("expanded");
+window.toggleHistoryCard = function(headerEl) {
+    const card = headerEl.parentElement;
+    card.classList.toggle("expanded");
 }
 
-function restoreEntry(id) {
-let historyList = JSON.parse(localStorage.getItem("wispendHistory") || "[]");
-let entriesList = JSON.parse(localStorage.getItem("wispendEntries") || "[]");
+// 从云端恢复记录并重新写入 transactions 集合
+window.restoreEntry = async function(firestoreId) {
+    const currentUser = auth.currentUser;
+    if (!currentUser) return;
 
-const targetIndex = historyList.findIndex(item => item.id === id);
-if (targetIndex === -1) return;
+    const targetItem = allHistory.find(item => item.firestoreId === firestoreId);
+    if (!targetItem) return;
 
-const itemToRestore = historyList[targetIndex];
-if (itemToRestore.entry) {
-entriesList.push(itemToRestore.entry);
-localStorage.setItem("wispendEntries", JSON.stringify(entriesList));
-}
+    try {
+        if (targetItem.entry) {
+            // 重新写入 transactions 集合
+            await addDoc(collection(db, "transactions"), {
+                ...targetItem.entry,
+                userId: currentUser.uid
+            });
+        }
 
-historyList.splice(targetIndex, 1);
-localStorage.setItem("wispendHistory", JSON.stringify(historyList));
+        // 从 history 集合中删除该条日志
+        await deleteDoc(doc(db, "history", firestoreId));
 
-alert("Transaction restored successfully!");
-renderHistory();
+        // 更新本地数组并刷新
+        allHistory = allHistory.filter(item => item.firestoreId !== firestoreId);
+        localStorage.setItem("wispendHistory", JSON.stringify(allHistory));
+
+        alert("Transaction restored successfully to cloud!");
+        renderHistory();
+    } catch (e) {
+        console.error("Error restoring entry:", e);
+        alert("Failed to restore entry.");
+    }
 }
 </script>
 

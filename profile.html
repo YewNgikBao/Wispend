@@ -309,6 +309,7 @@ justify-content: flex-end;
 <a href="transactions.html" class="nav-item">Transactions</a>
 <a href="invoices.html" class="nav-item">Invoices</a>
 <a href="reports.html" class="nav-item">Reports</a>
+<a href="history.html" class="nav-item">History</a>
 </nav>
 </div>
 
@@ -389,180 +390,212 @@ justify-content: flex-end;
 </div>
 
 <!-- =========================
-FIREBASE AUTH SYNC
+FIREBASE AUTH & FIRESTORE SYNC
 ========================= -->
 <script type="module">
 import { initializeApp } from "https://www.gstatic.com/firebasejs/10.8.0/firebase-app.js";
-import { getAuth, sendPasswordResetEmail } from "https://www.gstatic.com/firebasejs/10.8.0/firebase-auth.js";
+import { getAuth, onAuthStateChanged, sendPasswordResetEmail, deleteUser } from "https://www.gstatic.com/firebasejs/10.8.0/firebase-auth.js";
+import { getFirestore, doc, getDoc, setDoc, updateDoc, deleteDoc, collection, query, where, getDocs } from "https://www.gstatic.com/firebasejs/10.8.0/firebase-firestore.js";
 
 const firebaseConfig = {
-apiKey: "AIzaSyDKXFjTwZ92ITi-s4Sbph_bjNjuvkNQOb4",
-authDomain: "wispend-1234.firebaseapp.com",
-projectId: "wispend-1234",
-storageBucket: "wispend-1234.firebasestorage.app",
-messagingSenderId: "227503315553",
-appId: "1:227503315553:web:a913fdcab269787e926820",
-measurementId: "G-L3S3EK3Q1Z"
+  apiKey: "AIzaSyDKXFjTwZ92ITi-s4Sbph_bjNjuvkNQOb4",
+  authDomain: "wispend-1234.firebaseapp.com",
+  projectId: "wispend-1234",
+  storageBucket: "wispend-1234.firebasestorage.app",
+  messagingSenderId: "227503315553",
+  appId: "1:227503315553:web:a913fdcab269787e926820",
+  measurementId: "G-L3S3EK3Q1Z"
 };
 
 const app = initializeApp(firebaseConfig);
 const auth = getAuth(app);
+const db = getFirestore(app);
 
-const currentUser = JSON.parse(localStorage.getItem("wispendCurrentUser"));
-if (!currentUser) {
-alert("Please login first!");
-window.location.href = "index.html";
+let currentUid = null;
+let currentUserEmail = null;
+let cropper = null;
+let newAvatarBase64 = null;
+
+onAuthStateChanged(auth, async (user) => {
+    if (user) {
+        currentUid = user.uid;
+        currentUserEmail = user.email;
+        await loadProfileFromCloud(user);
+    } else {
+        alert("Please login first!");
+        window.location.href = "index.html";
+    }
+});
+
+async function loadProfileFromCloud(user) {
+    try {
+        const userDocRef = doc(db, "users", user.uid);
+        const userSnap = await getDoc(userDocRef);
+
+        let name = user.displayName || user.email.split('@')[0];
+        let avatar = "";
+
+        if (userSnap.exists()) {
+            const data = userSnap.data();
+            name = data.name || name;
+            avatar = data.avatar || "";
+        } else {
+            // 如果云端还没有 profile 文档，则初始化创建一个
+            await setDoc(userDocRef, {
+                uid: user.uid,
+                email: user.email,
+                name: name,
+                avatar: ""
+            });
+        }
+
+        // 渲染页面
+        document.getElementById("userNameDisplay").textContent = name;
+        document.getElementById("nameInput").value = name;
+        document.getElementById("emailInput").value = user.email;
+        newAvatarBase64 = avatar || null;
+        renderAvatarDisplay(name, avatar);
+
+        // 同步更新本地缓存
+        localStorage.setItem("wispendCurrentUser", JSON.stringify({ uid: user.uid, email: user.email, name, avatar }));
+    } catch (error) {
+        console.error("Error loading profile from cloud:", error);
+    }
+}
+
+function renderAvatarDisplay(name, avatarUrl) {
+    const initial = name ? name.charAt(0).toUpperCase() : "U";
+    const sidebarAvatar = document.getElementById("userAvatar");
+    const largeAvatar = document.getElementById("previewLargeAvatar");
+
+    if (avatarUrl) {
+        sidebarAvatar.innerHTML = `<img src="${avatarUrl}" alt="Avatar">`;
+        largeAvatar.innerHTML = `<img src="${avatarUrl}" alt="Avatar">`;
+    } else {
+        sidebarAvatar.innerHTML = initial;
+        largeAvatar.innerHTML = initial;
+    }
 }
 
 // 绑定全局密码重置函数
 window.handleResetPassword = function() {
-const email = currentUser.email;
-if (!email) {
-alert("No email address found for current user.");
-return;
-}
-sendPasswordResetEmail(auth, email)
-.then(() => {
-alert("Password reset email sent successfully! Please check your inbox.");
-})
-.catch((error) => {
-console.error("Error sending password reset email:", error);
-alert("Failed to send reset email: " + error.message);
-});
-};
-</script>
-
-<script>
-let cropper = null;
-let newAvatarBase64 = null;
-
-window.onload = function() {
-loadProfileData();
+    if (!currentUserEmail) {
+        alert("No email address found for current user.");
+        return;
+    }
+    sendPasswordResetEmail(auth, currentUserEmail)
+    .then(() => {
+        alert("Password reset email sent successfully! Please check your inbox.");
+    })
+    .catch((error) => {
+        console.error("Error sending password reset email:", error);
+        alert("Failed to send reset email: " + error.message);
+    });
 };
 
-function loadProfileData() {
-const currentUser = JSON.parse(localStorage.getItem("wispendCurrentUser"));
-if (!currentUser) {
-window.location.href = "index.html";
-return;
-}
+// 头像裁剪插件
+window.initCropper = function(event) {
+    const files = event.target.files;
+    if (files && files.length > 0) {
+        const file = files[0];
+        const reader = new FileReader();
+        reader.onload = function(e) {
+            const imageEl = document.getElementById('imageToCrop');
+            imageEl.src = e.target.result;
+            document.getElementById('cropperModal').style.display = 'flex';
 
-// 填充侧边栏名字和头像
-document.getElementById("userNameDisplay").textContent = currentUser.name;
-renderAvatarDisplay(currentUser.name, currentUser.avatar);
-
-// 填充表单
-document.getElementById("nameInput").value = currentUser.name || "";
-document.getElementById("emailInput").value = currentUser.email || "user@wispend.com";
-
-// 如果有缓存的头像（Base64），暂存
-newAvatarBase64 = currentUser.avatar || null;
-}
-
-function renderAvatarDisplay(name, avatarUrl) {
-const initial = name ? name.charAt(0).toUpperCase() : "U";
-const sidebarAvatar = document.getElementById("userAvatar");
-const largeAvatar = document.getElementById("previewLargeAvatar");
-
-if (avatarUrl) {
-sidebarAvatar.innerHTML = `<img src="${avatarUrl}" alt="Avatar">`;
-largeAvatar.innerHTML = `<img src="${avatarUrl}" alt="Avatar">`;
-} else {
-sidebarAvatar.innerHTML = initial;
-largeAvatar.innerHTML = initial;
-}
-}
-
-// 初始化裁剪插件
-function initCropper(event) {
-const files = event.target.files;
-if (files && files.length > 0) {
-const file = files[0];
-const reader = new FileReader();
-reader.onload = function(e) {
-const imageEl = document.getElementById('imageToCrop');
-imageEl.src = e.target.result;
-document.getElementById('cropperModal').style.display = 'flex';
-
-if (cropper) {
-cropper.destroy();
-}
-cropper = new Cropper(imageEl, {
-aspectRatio: 1, // 强制 1:1 正方形裁剪框，适配头像
-viewMode: 1,
-autoCropArea: 0.8,
-responsive: true,
-});
+            if (cropper) {
+                cropper.destroy();
+            }
+            cropper = new Cropper(imageEl, {
+                aspectRatio: 1, // 1:1 正方形
+                viewMode: 1,
+                autoCropArea: 0.8,
+                responsive: true,
+            });
+        };
+        reader.readAsDataURL(file);
+    }
 };
-reader.readAsDataURL(file);
-}
-}
 
-function closeCropperModal() {
-document.getElementById('cropperModal').style.display = 'none';
-if (cropper) {
-cropper.destroy();
-cropper = null;
-}
-document.getElementById('avatarFileInput').value = '';
-}
+window.closeCropperModal = function() {
+    document.getElementById('cropperModal').style.display = 'none';
+    if (cropper) {
+        cropper.destroy();
+        cropper = null;
+    }
+    document.getElementById('avatarFileInput').value = '';
+};
 
-function cropImage() {
-if (!cropper) return;
-const canvas = cropper.getCroppedCanvas({
-width: 200,
-height: 200,
-});
-newAvatarBase64 = canvas.toDataURL('image/jpeg', 0.9);
+window.cropImage = function() {
+    if (!cropper) return;
+    const canvas = cropper.getCroppedCanvas({
+        width: 200,
+        height: 200,
+    });
+    newAvatarBase64 = canvas.toDataURL('image/jpeg', 0.9);
 
-document.getElementById("previewLargeAvatar").innerHTML = `<img src="${newAvatarBase64}" alt="Avatar">`;
-closeCropperModal();
-}
+    document.getElementById("previewLargeAvatar").innerHTML = `<img src="${newAvatarBase64}" alt="Avatar">`;
+    closeCropperModal();
+};
 
-function saveProfile(event) {
-event.preventDefault();
-const newName = document.getElementById("nameInput").value.trim();
+window.saveProfile = async function(event) {
+    event.preventDefault();
+    const newName = document.getElementById("nameInput").value.trim();
 
-let currentUser = JSON.parse(localStorage.getItem("wispendCurrentUser")) || {};
-currentUser.name = newName;
-if (newAvatarBase64 !== undefined) {
-currentUser.avatar = newAvatarBase64;
-}
+    try {
+        const userDocRef = doc(db, "users", currentUid);
+        const updateData = { name: newName };
+        if (newAvatarBase64 !== undefined) {
+            updateData.avatar = newAvatarBase64;
+        }
 
-// 更新当前用户缓存
-localStorage.setItem("wispendCurrentUser", JSON.stringify(currentUser));
+        await updateDoc(userDocRef, updateData);
 
-// 同步更新用户总数据库列表
-let users = JSON.parse(localStorage.getItem("wispendUsers") || "[]");
-const userIndex = users.findIndex(u => u.email === currentUser.email);
-if (userIndex !== -1) {
-users[userIndex].name = newName;
-if (newAvatarBase64 !== undefined) users[userIndex].avatar = newAvatarBase64;
-localStorage.setItem("wispendUsers", JSON.stringify(users));
-}
+        // 更新本地缓存
+        let currentUser = JSON.parse(localStorage.getItem("wispendCurrentUser")) || {};
+        currentUser.name = newName;
+        if (newAvatarBase64 !== undefined) currentUser.avatar = newAvatarBase64;
+        localStorage.setItem("wispendCurrentUser", JSON.stringify(currentUser));
 
-alert("Profile updated successfully!");
-loadProfileData();
-}
+        renderAvatarDisplay(newName, newAvatarBase64);
+        document.getElementById("userNameDisplay").textContent = newName;
 
-function handleLogout() {
-localStorage.removeItem("wispendCurrentUser");
-window.location.href = "index.html";
-}
+        alert("Profile updated successfully to cloud!");
+    } catch (error) {
+        console.error("Error updating profile:", error);
+        alert("Failed to update profile: " + error.message);
+    }
+};
 
-function handleDeleteAccount() {
-if (confirm("Are you sure you want to delete your account? This action cannot be undone and will clear all your data.")) {
-const currentUser = JSON.parse(localStorage.getItem("wispendCurrentUser"));
-if (currentUser) {
-let users = JSON.parse(localStorage.getItem("wispendUsers") || "[]");
-users = users.filter(u => u.email !== currentUser.email);
-localStorage.setItem("wispendUsers", JSON.stringify(users));
-}
-localStorage.removeItem("wispendCurrentUser");
-localStorage.removeItem("wispendEntries");
-window.location.href = "index.html";
-}
-}
+window.handleLogout = function() {
+    auth.signOut().then(() => {
+        localStorage.removeItem("wispendCurrentUser");
+        window.location.href = "index.html";
+    }).catch((error) => {
+        console.error("Logout error:", error);
+    });
+};
+
+window.handleDeleteAccount = async function() {
+    if (confirm("Are you sure you want to delete your account? This action cannot be undone and will clear all your cloud data.")) {
+        try {
+            const user = auth.currentUser;
+            if (user) {
+                // 删除云端 users 文档
+                await deleteDoc(doc(db, "users", currentUid));
+                // 删除 Firebase Auth 账号
+                await deleteUser(user);
+            }
+            localStorage.removeItem("wispendCurrentUser");
+            alert("Account deleted successfully.");
+            window.location.href = "index.html";
+        } catch (error) {
+            console.error("Error deleting account:", error);
+            alert("Failed to delete account. You may need to sign out and log back in before deleting: " + error.message);
+        }
+    }
+};
 </script>
 
 </body>
