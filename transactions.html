@@ -89,6 +89,7 @@ tbody tr:hover { background-color: #f7faf8; }
 .cat-Facilities { background: #fce8e6; color: #c53929; }
 .cat-Logistics { background: #fef3c7; color: #d97706; }
 .cat-Payroll { background: #fee2e2; color: #991b1b; }
+.cat-PaymentReceived { background: #e0f2fe; color: #0369a1; }
 .cat-Default { background: #f0f4f1; color: #4e6158; }
 
 /* Status 状态标签样式 */
@@ -254,16 +255,16 @@ FIREBASE AUTH & FIRESTORE SYNC
 <script type="module">
 import { initializeApp } from "https://www.gstatic.com/firebasejs/10.8.0/firebase-app.js";
 import { getAuth, onAuthStateChanged } from "https://www.gstatic.com/firebasejs/10.8.0/firebase-auth.js";
-import { getFirestore, doc, getDoc, collection, getDocs, addDoc, updateDoc, deleteDoc } from "https://www.gstatic.com/firebasejs/10.8.0/firebase-firestore.js";
+import { getFirestore, doc, getDoc, collection, getDocs, addDoc, updateDoc, deleteDoc, query, where, onSnapshot } from "https://www.gstatic.com/firebasejs/10.8.0/firebase-firestore.js";
 
 const firebaseConfig = {
-  apiKey: "AIzaSyDKXFjTwZ92ITi-s4Sbph_bjNjuvkNQOb4",
-  authDomain: "wispend-1234.firebaseapp.com",
-  projectId: "wispend-1234",
-  storageBucket: "wispend-1234.firebasestorage.app",
-  messagingSenderId: "227503315553",
-  appId: "1:227503315553:web:a913fdcab269787e926820",
-  measurementId: "G-L3S3EK3Q1Z"
+apiKey: "AIzaSyDKXFjTwZ92ITi-s4Sbph_bjNjuvkNQOb4",
+authDomain: "wispend-1234.firebaseapp.com",
+projectId: "wispend-1234",
+storageBucket: "wispend-1234.firebasestorage.app",
+messagingSenderId: "227503315553",
+appId: "1:227503315553:web:a913fdcab269787e926820",
+measurementId: "G-L3S3EK3Q1Z"
 };
 
 const app = initializeApp(firebaseConfig);
@@ -275,277 +276,286 @@ let selectedYear = new Date().getFullYear();
 let activeTypeFilter = 'All';
 let cachedEntries = [];
 let cachedInvoices = [];
+let unsubscribeEntries = null;
 
 onAuthStateChanged(auth, async (user) => {
-    if (user) {
-        currentUid = user.uid;
-        await loadUserData(user);
-        await initCategories();
-        await fetchCloudData();
-        document.getElementById('entryDate').valueAsDate = new Date();
-    } else {
-        alert("Please login first!");
-        window.location.href = "index.html";
-    }
+if (user) {
+currentUid = user.uid;
+await loadUserData(user);
+await initCategories();
+initRealtimeSync();
+document.getElementById('entryDate').valueAsDate = new Date();
+} else {
+alert("Please login first!");
+window.location.href = "index.html";
+}
 });
 
 async function loadUserData(user) {
-    try {
-        const userDocRef = doc(db, "users", user.uid);
-        const userSnap = await getDoc(userDocRef);
+try {
+const userDocRef = doc(db, "users", user.uid);
+const userSnap = await getDoc(userDocRef);
 
-        let name = user.displayName || user.email.split('@')[0];
-        let avatar = "";
+let name = user.displayName || user.email.split('@')[0];
+let avatar = "";
 
-        if (userSnap.exists()) {
-            const data = userSnap.data();
-            name = data.name || name;
-            avatar = data.avatar || "";
-        }
+if (userSnap.exists()) {
+const data = userSnap.data();
+name = data.name || name;
+avatar = data.avatar || "";
+}
 
-        document.getElementById("userNameDisplay").textContent = name;
-        const avatarEl = document.getElementById("userAvatar");
-        if (avatar) {
-            avatarEl.innerHTML = `<img src="${avatar}" alt="Avatar">`;
-        } else {
-            avatarEl.textContent = name.charAt(0).toUpperCase();
-        }
-    } catch (error) {
-        console.error("Error loading user profile:", error);
-    }
+document.getElementById("userNameDisplay").textContent = name;
+const avatarEl = document.getElementById("userAvatar");
+if (avatar) {
+avatarEl.innerHTML = `<img src="${avatar}" alt="Avatar">`;
+} else {
+avatarEl.textContent = name.charAt(0).toUpperCase();
+}
+} catch (error) {
+console.error("Error loading user profile:", error);
+}
 }
 
 async function initCategories() {
-    let savedCats = ["Invoice", "Sales", "Facilities", "Logistics", "Payroll", "Others"];
-    try {
-        const catDoc = await getDoc(doc(db, "users", currentUid, "settings", "categories"));
-        if (catDoc.exists() && catDoc.data().list) {
-            savedCats = catDoc.data().list;
-        }
-    } catch (e) {
-        console.log("Using default categories");
-    }
-
-    const filterSelect = document.getElementById("categoryFilter");
-    filterSelect.innerHTML = '<option value="All">All categories</option>';
-    const entrySelect = document.getElementById("entryCategory");
-    entrySelect.innerHTML = '';
-
-    savedCats.forEach(cat => {
-        filterSelect.innerHTML += `<option value="${cat}">${cat}</option>`;
-        entrySelect.innerHTML += `<option value="${cat}">${cat}</option>`;
-    });
+let savedCats = ["Invoice", "Sales", "Facilities", "Logistics", "Payroll", "Others", "Payment Received"];
+try {
+const catDoc = await getDoc(doc(db, "users", currentUid, "settings", "categories"));
+if (catDoc.exists() && catDoc.data().list) {
+savedCats = catDoc.data().list;
+if (!savedCats.includes("Payment Received")) savedCats.push("Payment Received");
+}
+} catch (e) {
+console.log("Using default categories");
 }
 
-async function fetchCloudData() {
-    try {
-        // 获取 entries
-        const entriesSnap = await getDocs(collection(db, "users", currentUid, "entries"));
-        cachedEntries = [];
-        entriesSnap.forEach(docSnap => {
-            cachedEntries.push({ id: docSnap.id, ...docSnap.data() });
-        });
+const filterSelect = document.getElementById("categoryFilter");
+filterSelect.innerHTML = '<option value="All">All categories</option>';
+const entrySelect = document.getElementById("entryCategory");
+entrySelect.innerHTML = '';
 
-        // 获取 invoices 用于校验状态
-        const invoicesSnap = await getDocs(collection(db, "users", currentUid, "invoices"));
-        cachedInvoices = [];
-        invoicesSnap.forEach(docSnap => {
-            cachedInvoices.push({ id: docSnap.id, ...docSnap.data() });
-        });
+savedCats.forEach(cat => {
+filterSelect.innerHTML += `<option value="${cat}">${cat}</option>`;
+entrySelect.innerHTML += `<option value="${cat}">${cat}</option>`;
+});
+}
 
-        renderTransactions();
-    } catch (error) {
-        console.error("Error fetching cloud data:", error);
-    }
+function initRealtimeSync() {
+if (unsubscribeEntries) unsubscribeEntries();
+
+const q = query(collection(db, "transactions"), where("userId", "==", currentUid));
+
+unsubscribeEntries = onSnapshot(q, async (snapshot) => {
+cachedEntries = [];
+snapshot.forEach(docSnap => {
+cachedEntries.push({ id: docSnap.id, ...docSnap.data() });
+});
+
+try {
+const invoicesSnap = await getDocs(collection(db, "users", currentUid, "invoices"));
+cachedInvoices = [];
+invoicesSnap.forEach(docSnap => {
+cachedInvoices.push({ id: docSnap.id, ...docSnap.data() });
+});
+} catch (err) {
+console.error("Error fetching invoices:", err);
+}
+
+renderTransactions();
+
+}, (error) => {
+console.error("Error listening to transactions:", error);
+});
 }
 
 window.changeYear = function(delta) {
-    selectedYear += delta;
-    document.getElementById("yearDisplay").textContent = selectedYear;
-    renderTransactions();
+selectedYear += delta;
+document.getElementById("yearDisplay").textContent = selectedYear;
+renderTransactions();
 };
 
 window.setTypeFilter = function(type, btnElement) {
-    activeTypeFilter = type;
-    document.querySelectorAll('.tab-btn').forEach(btn => btn.classList.remove('active'));
-    btnElement.classList.add('active');
-    renderTransactions();
+activeTypeFilter = type;
+document.querySelectorAll('.tab-btn').forEach(btn => btn.classList.remove('active'));
+btnElement.classList.add('active');
+renderTransactions();
 };
 
 function getInvoiceStatus(item) {
-    const matched = cachedInvoices.find(inv => 
-        (inv.number && item.desc && item.desc.includes(inv.number)) || 
-        (inv.company && item.desc && item.desc.toLowerCase().includes(inv.company.toLowerCase())) ||
-        (item.invoiceId && String(item.invoiceId) === String(inv.id))
-    );
+const matched = cachedInvoices.find(inv => 
+(inv.number && item.desc && item.desc.includes(inv.number)) || 
+(inv.company && item.desc && item.desc.toLowerCase().includes(inv.company.toLowerCase())) ||
+(item.invoiceId && String(item.invoiceId) === String(inv.id))
+);
 
-    if (matched) {
-        const today = new Date();
-        today.setHours(0,0,0,0);
-        const due = new Date(matched.dueDate);
-        if (matched.status !== 'Paid' && due < today) return 'Overdue';
-        return matched.status || 'Pending';
-    }
-    return item.status || 'Pending';
+if (matched) {
+const today = new Date();
+today.setHours(0,0,0,0);
+const due = new Date(matched.dueDate);
+if (matched.status !== 'Paid' && due < today) return 'Overdue';
+return matched.status || 'Pending';
+}
+return item.status || 'Pending';
 }
 
 window.renderTransactions = function() {
-    const selectedCategory = document.getElementById("categoryFilter").value;
-    const searchKeyword = document.getElementById("searchInput").value.trim().toLowerCase();
+const selectedCategory = document.getElementById("categoryFilter").value;
+const searchKeyword = document.getElementById("searchInput").value.trim().toLowerCase();
 
-    let filtered = cachedEntries.filter(e => {
-        if (!e.date) return false;
-        const d = new Date(e.date);
-        return d.getFullYear() === selectedYear;
-    });
+let filtered = cachedEntries.filter(e => {
+if (!e.date) return false;
+const d = new Date(e.date);
+return d.getFullYear() === selectedYear;
+});
 
-    if (activeTypeFilter !== 'All') {
-        filtered = filtered.filter(e => e.type === activeTypeFilter);
-    }
+if (activeTypeFilter !== 'All') {
+filtered = filtered.filter(e => e.type === activeTypeFilter);
+}
 
-    if (selectedCategory !== 'All') {
-        filtered = filtered.filter(e => e.category === selectedCategory);
-    }
+if (selectedCategory !== 'All') {
+filtered = filtered.filter(e => e.category === selectedCategory);
+}
 
-    if (searchKeyword !== '') {
-        filtered = filtered.filter(e => {
-            const descMatch = e.desc && e.desc.toLowerCase().includes(searchKeyword);
-            const amountMatch = e.amount && (parseFloat(e.amount).toFixed(2).toString().includes(searchKeyword) || e.amount.toString().includes(searchKeyword));
-            return descMatch || amountMatch;
-        });
-    }
+if (searchKeyword !== '') {
+filtered = filtered.filter(e => {
+const descMatch = e.desc && e.desc.toLowerCase().includes(searchKeyword);
+const amountMatch = e.amount && (parseFloat(e.amount).toFixed(2).toString().includes(searchKeyword) || e.amount.toString().includes(searchKeyword));
+return descMatch || amountMatch;
+});
+}
 
-    filtered.sort((a, b) => new Date(b.date) - new Date(a.date));
+filtered.sort((a, b) => new Date(b.date) - new Date(a.date));
 
-    document.getElementById("transactionSubText").textContent = `${filtered.length} postings · Full Year ${selectedYear}`;
+document.getElementById("transactionSubText").textContent = `${filtered.length} postings · Full Year ${selectedYear}`;
 
-    const tbody = document.getElementById("transactionTableBody");
-    tbody.innerHTML = "";
+const tbody = document.getElementById("transactionTableBody");
+tbody.innerHTML = "";
 
-    if (filtered.length === 0) {
-        tbody.innerHTML = `<tr><td colspan="4" style="text-align: center; color: #8e9f97; padding: 30px;">No transactions found for ${selectedYear}</td></tr>`;
-        return;
-    }
+if (filtered.length === 0) {
+tbody.innerHTML = `<tr><td colspan="4" style="text-align: center; color: #8e9f97; padding: 30px;">No transactions found for ${selectedYear}</td></tr>`;
+return;
+}
 
-    filtered.forEach(e => {
-        const tr = document.createElement("tr");
-        tr.onclick = () => openEditModal(e.id);
+filtered.forEach(e => {
+const tr = document.createElement("tr");
+tr.onclick = () => openEditModal(e.id);
 
-        const dateObj = new Date(e.date);
-        const formattedDate = isNaN(dateObj.getTime()) ? e.date : dateObj.toLocaleDateString('en-US', { month: 'short', day: '2-digit' });
+const dateObj = new Date(e.date);
+const formattedDate = isNaN(dateObj.getTime()) ? e.date : dateObj.toLocaleDateString('en-US', { month: 'short', day: '2-digit' });
 
-        const catClass = ['Sales', 'Invoice', 'Facilities', 'Logistics', 'Payroll'].includes(e.category) ? `cat-${e.category}` : 'cat-Default';
+let catClass = 'cat-Default';
+if (['Sales', 'Invoice', 'Facilities', 'Logistics', 'Payroll'].includes(e.category)) {
+catClass = `cat-${e.category}`;
+} else if (e.category === 'Payment Received') {
+catClass = 'cat-PaymentReceived';
+}
 
-        let statusHTML = '';
-        if (e.category === 'Invoice') {
-            const currentStatus = getInvoiceStatus(e);
-            const statusClass = `status-${currentStatus.toLowerCase()}`;
-            statusHTML = `<span class="status-tag ${statusClass}">${currentStatus}</span>`;
-        }
+let statusHTML = '';
+if (e.category === 'Invoice') {
+const currentStatus = getInvoiceStatus(e);
+const statusClass = `status-${currentStatus.toLowerCase()}`;
+statusHTML = `<span class="status-tag ${statusClass}">${currentStatus}</span>`;
+}
 
-        tr.innerHTML = `
-            <td style="color: #697d75; font-weight: 500;">${formattedDate}</td>
-            <td style="font-weight: 600; color: #1f302b;">${e.desc}</td>
-            <td>
-                <span class="cat-tag ${catClass}">${e.category}</span>
-                ${statusHTML}
-            </td>
-            <td style="text-align: right;" class="${e.type === 'Income' ? 'amt-income' : 'amt-expense'}">
-                ${e.type === 'Income' ? '+' : '-'}RM ${parseFloat(e.amount || 0).toLocaleString('en-US', {minimumFractionDigits: 2, maximumFractionDigits: 2})}
-            </td>
-        `;
-        tbody.appendChild(tr);
-    });
+tr.innerHTML = `
+<td style="color: #697d75; font-weight: 500;">${formattedDate}</td>
+<td style="font-weight: 600; color: #1f302b;">${e.desc}</td>
+<td>
+<span class="cat-tag ${catClass}">${e.category}</span>
+${statusHTML}
+</td>
+<td style="text-align: right;" class="${e.type === 'Income' ? 'amt-income' : 'amt-expense'}">
+${e.type === 'Income' ? '+' : '-'}RM ${parseFloat(e.amount || 0).toLocaleString('en-US', {minimumFractionDigits: 2, maximumFractionDigits: 2})}
+</td>
+`;
+tbody.appendChild(tr);
+});
 };
 
 window.openAddModal = function() {
-    document.getElementById("modalTitle").textContent = "Add New Entry";
-    document.getElementById("editDocId").value = "";
-    document.getElementById("saveBtn").textContent = "Save Entry";
-    document.getElementById("deleteBtn").style.display = "none";
-    document.querySelector("#entryModal form").reset();
-    document.getElementById('entryDate').valueAsDate = new Date();
-    document.getElementById("entryModal").classList.add("active");
+document.getElementById("modalTitle").textContent = "Add New Entry";
+document.getElementById("editDocId").value = "";
+document.getElementById("saveBtn").textContent = "Save Entry";
+document.getElementById("deleteBtn").style.display = "none";
+document.querySelector("#entryModal form").reset();
+document.getElementById('entryDate').valueAsDate = new Date();
+document.getElementById("entryModal").classList.add("active");
 };
 
 window.openEditModal = function(docId) {
-    const item = cachedEntries.find(e => e.id === docId);
-    if (!item) return;
+const item = cachedEntries.find(e => e.id === docId);
+if (!item) return;
 
-    document.getElementById("modalTitle").textContent = "Edit Entry";
-    document.getElementById("editDocId").value = docId;
-    document.getElementById("entryType").value = item.type || 'Income';
-    document.getElementById("entryDesc").value = item.desc || '';
-    document.getElementById("entryAmount").value = item.amount || '';
-    document.getElementById("entryDate").value = item.date || '';
-    document.getElementById("entryCategory").value = item.category || 'Sales';
+document.getElementById("modalTitle").textContent = "Edit Entry";
+document.getElementById("editDocId").value = docId;
+document.getElementById("entryType").value = item.type || 'Income';
+document.getElementById("entryDesc").value = item.desc || '';
+document.getElementById("entryAmount").value = item.amount || '';
+document.getElementById("entryDate").value = item.date || '';
+document.getElementById("entryCategory").value = item.category || 'Sales';
 
-    document.getElementById("saveBtn").textContent = "Update Entry";
-    document.getElementById("deleteBtn").style.display = "block";
-    document.getElementById("entryModal").classList.add("active");
+document.getElementById("saveBtn").textContent = "Update Entry";
+document.getElementById("deleteBtn").style.display = "block";
+document.getElementById("entryModal").classList.add("active");
 };
 
 window.saveEntry = async function(event) {
-    event.preventDefault();
-    const editDocId = document.getElementById("editDocId").value;
+event.preventDefault();
+const editDocId = document.getElementById("editDocId").value;
 
-    const entryData = {
-        type: document.getElementById("entryType").value,
-        desc: document.getElementById("entryDesc").value,
-        amount: parseFloat(document.getElementById("entryAmount").value) || 0,
-        date: document.getElementById("entryDate").value,
-        category: document.getElementById("entryCategory").value,
-        createdAt: new Date().toISOString()
-    };
+const entryData = {
+userId: currentUid,
+type: document.getElementById("entryType").value,
+desc: document.getElementById("entryDesc").value,
+amount: parseFloat(document.getElementById("entryAmount").value) || 0,
+date: document.getElementById("entryDate").value,
+category: document.getElementById("entryCategory").value,
+createdAt: new Date().toISOString()
+};
 
-    try {
-        const entriesCol = collection(db, "users", currentUid, "entries");
-        if (!editDocId) {
-            await addDoc(entriesCol, entryData);
-        } else {
-            await updateDoc(doc(db, "users", currentUid, "entries", editDocId), entryData);
-        }
-
-        closeModal();
-        await fetchCloudData();
-    } catch (error) {
-        console.error("Error saving entry to cloud:", error);
-        alert("Failed to save entry: " + error.message);
-    }
+try {
+if (!editDocId) {
+await addDoc(collection(db, "transactions"), entryData);
+} else {
+await updateDoc(doc(db, "transactions", editDocId), entryData);
+}
+closeModal();
+} catch (error) {
+console.error("Error saving entry to cloud:", error);
+alert("Failed to save entry: " + error.message);
+}
 };
 
 window.deleteEntry = async function() {
-    const editDocId = document.getElementById("editDocId").value;
-    if (!editDocId) return;
+const editDocId = document.getElementById("editDocId").value;
+if (!editDocId) return;
 
-    const reason = prompt("Please enter the reason for deletion:");
-    if (reason === null) return; 
+const reason = prompt("Please enter the reason for deletion:");
+if (reason === null) return; 
 
-    try {
-        const deletedItem = cachedEntries.find(e => e.id === editDocId);
-        if (deletedItem) {
-            // 记录到云端 history
-            await addDoc(collection(db, "users", currentUid, "history"), {
-                action: 'Delete Transaction',
-                description: deletedItem.desc,
-                amount: deletedItem.amount,
-                type: deletedItem.type,
-                reason: reason.trim() || 'No reason provided',
-                timestamp: new Date().toLocaleString()
-            });
-        }
+try {
+const deletedItem = cachedEntries.find(e => e.id === editDocId);
+if (deletedItem) {
+await addDoc(collection(db, "users", currentUid, "history"), {
+action: 'Delete Transaction',
+description: deletedItem.desc,
+amount: deletedItem.amount,
+type: deletedItem.type,
+reason: reason.trim() || 'No reason provided',
+timestamp: new Date().toLocaleString()
+});
+}
 
-        await deleteDoc(doc(db, "users", currentUid, "entries", editDocId));
-        closeModal();
-        await fetchCloudData();
-    } catch (error) {
-        console.error("Error deleting entry:", error);
-        alert("Failed to delete entry: " + error.message);
-    }
+await deleteDoc(doc(db, "transactions", editDocId));
+closeModal();
+} catch (error) {
+console.error("Error deleting entry:", error);
+alert("Failed to delete entry: " + error.message);
+}
 };
 
 window.closeModal = function() { 
-    document.getElementById("entryModal").classList.remove("active"); 
+document.getElementById("entryModal").classList.remove("active"); 
 };
 </script>
 

@@ -110,9 +110,9 @@ body { background-color: #f7f6f2; font-family: -apple-system, BlinkMacSystemFont
 <div class="bg-white rounded-2xl border border-gray-100 shadow-sm p-6">
 <div class="flex space-x-2 border-b border-gray-100 pb-4 mb-4">
 <button onclick="setTab('all')" id="tab-all" class="px-4 py-1.5 text-xs font-medium rounded-full bg-gray-200 text-gray-800">All</button>
-<button onclick="setTab('pending')" id="tab-pending" class="px-4 py-1.5 text-xs font-medium rounded-full text-gray-500 hover:bg-gray-100">Pending</button>
+<button onclick="setTab('Pending')" id="tab-pending" class="px-4 py-1.5 text-xs font-medium rounded-full text-gray-500 hover:bg-gray-100">Pending</button>
 <button onclick="setTab('overdue')" id="tab-overdue" class="px-4 py-1.5 text-xs font-medium rounded-full text-gray-500 hover:bg-gray-100">Overdue</button>
-<button onclick="setTab('paid')" id="tab-paid" class="px-4 py-1.5 text-xs font-medium rounded-full text-gray-500 hover:bg-gray-100">Paid</button>
+<button onclick="setTab('Paid')" id="tab-paid" class="px-4 py-1.5 text-xs font-medium rounded-full text-gray-500 hover:bg-gray-100">Paid</button>
 </div>
 
 <div id="invoiceList" class="divide-y divide-gray-100"></div>
@@ -204,7 +204,7 @@ body { background-color: #f7f6f2; font-family: -apple-system, BlinkMacSystemFont
 </div>
 </div>
 
-<!-- Firebase 脚本引入与核心逻辑 -->
+<!-- Firebase 脚本引入与实时同步逻辑 -->
 <script type="module">
 import { initializeApp } from "https://www.gstatic.com/firebasejs/10.8.0/firebase-app.js";
 import { getAuth, onAuthStateChanged } from "https://www.gstatic.com/firebasejs/10.8.0/firebase-auth.js";
@@ -212,12 +212,12 @@ import {
   getFirestore, 
   collection, 
   addDoc, 
-  getDocs, 
   doc, 
   updateDoc, 
   deleteDoc, 
   query, 
-  where 
+  where,
+  onSnapshot 
 } from "https://www.gstatic.com/firebasejs/10.8.0/firebase-firestore.js";
 
 const firebaseConfig = {
@@ -238,433 +238,428 @@ let invoices = [];
 let currentTab = 'all';
 let activeFirestoreId = null;
 let currentUid = null;
+let unsubscribeInvoices = null;
 
 window.onload = function() {
-    onAuthStateChanged(auth, async (user) => {
-        if (user) {
-            currentUid = user.uid;
-            loadUserData(user);
-            await loadInvoicesFromCloud();
-            renderApp();
-        } else {
-            window.location.href = "index.html";
-        }
-    });
+  onAuthStateChanged(auth, async (user) => {
+    if (user) {
+      currentUid = user.uid;
+      loadUserData(user);
+      initRealtimeInvoicesSync();
+    } else {
+      window.location.href = "index.html";
+    }
+  });
 };
 
 function loadUserData(user) {
-    const currentUser = JSON.parse(localStorage.getItem("wispendCurrentUser"));
-    const userName = currentUser ? currentUser.name : user.email.split('@')[0];
-    
-    document.getElementById("userNameDisplay").textContent = userName;
-    const avatarEl = document.getElementById("userAvatar");
-    
-    if (currentUser && currentUser.avatar) {
-        avatarEl.innerHTML = `<img src="${currentUser.avatar}" alt="Avatar" class="w-full h-full object-cover rounded-full">`;
-    } else {
-        avatarEl.innerHTML = userName.charAt(0).toUpperCase();
-    }
+  const currentUser = JSON.parse(localStorage.getItem("wispendCurrentUser"));
+  const userName = currentUser ? currentUser.name : user.email.split('@')[0];
+  document.getElementById("userNameDisplay").textContent = userName;
+  const avatarEl = document.getElementById("userAvatar");
+  if (currentUser && currentUser.avatar) {
+    avatarEl.innerHTML = `<img src="${currentUser.avatar}" alt="Avatar" class="w-full h-full object-cover rounded-full">`;
+  } else {
+    avatarEl.innerHTML = userName.charAt(0).toUpperCase();
+  }
 }
 
-async function loadInvoicesFromCloud() {
-    try {
-        const q = query(collection(db, "invoices"), where("userId", "==", currentUid));
-        const snapshot = await getDocs(q);
-        invoices = [];
-        snapshot.forEach((docSnap) => {
-            invoices.push({ firestoreId: docSnap.id, ...docSnap.data() });
-        });
-    } catch (e) {
-        console.error("Error loading invoices from cloud:", e);
-        invoices = [];
-    }
+function initRealtimeInvoicesSync() {
+  if (unsubscribeInvoices) unsubscribeInvoices();
+
+  const q = query(
+    collection(db, "transactions"), 
+    where("userId", "==", currentUid),
+    where("category", "==", "Invoice")
+  );
+
+  unsubscribeInvoices = onSnapshot(q, (snapshot) => {
+    invoices = [];
+    snapshot.forEach((docSnap) => {
+      invoices.push({ firestoreId: docSnap.id, ...docSnap.data() });
+    });
+    renderApp();
+  }, (error) => {
+    console.error("Error listening to invoices:", error);
+  });
 }
 
 function getInvoiceDetails(inv) {
-    const paidSoFar = (inv.payments || []).reduce((sum, p) => sum + Number(p.amount), 0);
-    const balance = Math.max(0, Number(inv.amount) - paidSoFar);
-    let status = 'pending';
-    if (balance <= 0) {
-        status = 'paid';
-    } else {
-        const today = new Date().toISOString().split('T')[0];
-        if (inv.dueDate < today) {
-            status = 'overdue';
-        }
+  const paidSoFar = (inv.payments || []).reduce((sum, p) => sum + Number(p.amount), 0);
+  const balance = Math.max(0, Number(inv.amount) - paidSoFar);
+  let status = inv.status || 'Pending';
+  
+  if (balance <= 0) {
+    status = 'Paid';
+  } else {
+    const today = new Date().toISOString().split('T')[0];
+    if (inv.dueDate && inv.dueDate < today && status !== 'Paid') {
+      status = 'overdue';
     }
-    return { paidSoFar, balance, status };
+  }
+  return { paidSoFar, balance, status };
 }
 
 function updateYearSelectOptions() {
-    const yearSelect = document.getElementById('yearFilter');
-    const currentValue = yearSelect.value || 'ALL';
-    const years = new Set([new Date().getFullYear().toString()]);
+  const yearSelect = document.getElementById('yearFilter');
+  const currentValue = yearSelect.value || 'ALL';
+  const years = new Set([new Date().getFullYear().toString()]);
 
-    invoices.forEach(inv => {
-        if (inv.dueDate) years.add(inv.dueDate.split('-')[0]);
-    });
+  invoices.forEach(inv => {
+    if (inv.dueDate) years.add(inv.dueDate.split('-')[0]);
+  });
 
-    const sortedYears = Array.from(years).sort((a, b) => b - a);
-    yearSelect.innerHTML = `<option value="ALL">All Years</option>`;
-    sortedYears.forEach(y => {
-        const opt = document.createElement('option');
-        opt.value = y;
-        opt.textContent = y;
-        yearSelect.appendChild(opt);
-    });
-    yearSelect.value = currentValue;
+  const sortedYears = Array.from(years).sort((a, b) => b - a);
+  yearSelect.innerHTML = `<option value="ALL">All Years</option>`;
+  sortedYears.forEach(y => {
+    const opt = document.createElement('option');
+    opt.value = y;
+    opt.textContent = y;
+    yearSelect.appendChild(opt);
+  });
+  yearSelect.value = currentValue;
 }
 
 window.renderApp = function() {
-    updateYearSelectOptions();
-    const selectedYear = document.getElementById('yearFilter').value;
+  updateYearSelectOptions();
+  const selectedYear = document.getElementById('yearFilter').value;
 
-    const filteredByYear = invoices.filter(inv => {
-        if (selectedYear === 'ALL') return true;
-        return inv.dueDate && inv.dueDate.startsWith(selectedYear);
-    });
+  const filteredByYear = invoices.filter(inv => {
+    if (selectedYear === 'ALL') return true;
+    return inv.dueDate && inv.dueDate.startsWith(selectedYear);
+  });
 
-    let totalOutstanding = 0;
-    let overdueCount = 0;
-    let paidTotal = 0;
-    let paidCount = 0;
+  let totalOutstanding = 0;
+  let overdueCount = 0;
+  let paidTotal = 0;
+  let paidCount = 0;
 
-    filteredByYear.forEach(inv => {
-        const { paidSoFar, balance, status } = getInvoiceDetails(inv);
-        if (status === 'paid') {
-            paidTotal += Number(inv.amount);
-            paidCount++;
-        } else {
-            totalOutstanding += balance;
-            if (status === 'overdue') overdueCount++;
-        }
-    });
+  filteredByYear.forEach(inv => {
+    const { paidSoFar, balance, status } = getInvoiceDetails(inv);
+    if (status === 'Paid') {
+      paidTotal += Number(inv.amount);
+      paidCount++;
+    } else {
+      totalOutstanding += balance;
+      if (status === 'overdue') overdueCount++;
+    }
+  });
 
-    document.getElementById('subHeaderStats').innerText = `${filteredByYear.length} total • RM ${totalOutstanding.toLocaleString('en-US', {minimumFractionDigits: 2})} outstanding`;
-    document.getElementById('cardOutstandingAmount').innerText = `RM ${totalOutstanding.toLocaleString('en-US', {minimumFractionDigits: 2})}`;
-    document.getElementById('cardOverdueCount').innerText = overdueCount;
-    document.getElementById('cardPaidAmount').innerText = `RM ${paidTotal.toLocaleString('en-US', {minimumFractionDigits: 2})}`;
-    document.getElementById('cardPaidCount').innerText = `${paidCount} invoices`;
+  document.getElementById('subHeaderStats').innerText = `${filteredByYear.length} total • RM ${totalOutstanding.toLocaleString('en-US', {minimumFractionDigits: 2})} outstanding`;
+  document.getElementById('cardOutstandingAmount').innerText = `RM ${totalOutstanding.toLocaleString('en-US', {minimumFractionDigits: 2})}`;
+  document.getElementById('cardOverdueCount').innerText = overdueCount;
+  document.getElementById('cardPaidAmount').innerText = `RM ${paidTotal.toLocaleString('en-US', {minimumFractionDigits: 2})}`;
+  document.getElementById('cardPaidCount').innerText = `${paidCount} invoices`;
 
-    const listEl = document.getElementById('invoiceList');
-    listEl.innerHTML = '';
+  const listEl = document.getElementById('invoiceList');
+  listEl.innerHTML = '';
 
-    const filteredList = filteredByYear.filter(inv => {
-        const { status } = getInvoiceDetails(inv);
-        if (currentTab === 'all') return true;
-        return status === currentTab;
-    });
+  const filteredList = filteredByYear.filter(inv => {
+    const { status } = getInvoiceDetails(inv);
+    if (currentTab === 'all') return true;
+    if (currentTab === 'overdue') return status === 'overdue';
+    return status.toLowerCase() === currentTab.toLowerCase();
+  });
 
-    if (filteredList.length === 0) {
-        listEl.innerHTML = `<div class="py-12 text-center text-gray-400 text-sm">No invoices found. Click "+ New invoice" to add one.</div>`;
-        return;
+  if (filteredList.length === 0) {
+    listEl.innerHTML = `<div class="py-12 text-center text-gray-400 text-sm">No invoices found. Click "+ New invoice" to add one.</div>`;
+    return;
+  }
+
+  filteredList.forEach(inv => {
+    const { paidSoFar, balance, status } = getInvoiceDetails(inv);
+    const d = new Date(inv.dueDate);
+    const dateStr = isNaN(d.getTime()) ? inv.dueDate : d.toLocaleDateString('en-US', { month: 'short', day: 'numeric', year: 'numeric' });
+
+    let badgeClass = 'bg-amber-100 text-amber-800';
+    let statusText = 'Pending';
+    if (status === 'Paid') {
+      badgeClass = 'bg-emerald-100 text-emerald-800';
+      statusText = 'Paid';
+    } else if (status === 'overdue') {
+      badgeClass = 'bg-red-100 text-red-800';
+      statusText = 'Overdue';
     }
 
-    filteredList.forEach(inv => {
-        const { paidSoFar, balance, status } = getInvoiceDetails(inv);
-        const d = new Date(inv.dueDate);
-        const dateStr = isNaN(d.getTime()) ? inv.dueDate : d.toLocaleDateString('en-US', { month: 'short', day: 'numeric', year: 'numeric' });
+    const item = document.createElement('div');
+    item.className = 'py-4 flex justify-between items-center hover:bg-gray-50/80 px-2 rounded-lg cursor-pointer transition';
+    item.onclick = () => openPaymentModal(inv.firestoreId);
 
-        let badgeClass = 'bg-amber-100 text-amber-800';
-        let statusText = 'Pending';
-        if (status === 'paid') {
-            badgeClass = 'bg-emerald-100 text-emerald-800';
-            statusText = 'Paid';
-        } else if (status === 'overdue') {
-            badgeClass = 'bg-red-100 text-red-800';
-            statusText = 'Overdue';
-        }
+    const invNum = inv.invNo || inv.number || 'N/A';
+    const company = inv.company || (inv.desc ? inv.desc.split(' - ')[1] : '') || 'Client';
 
-        const item = document.createElement('div');
-        item.className = 'py-4 flex justify-between items-center hover:bg-gray-50/80 px-2 rounded-lg cursor-pointer transition';
-        item.onclick = () => openPaymentModal(inv.firestoreId);
-
-        item.innerHTML = `
-            <div>
-                <h4 class="font-semibold text-gray-900 text-sm">Invoice ${inv.number} • ${inv.company}</h4>
-                <p class="text-xs text-gray-400 mt-0.5">Due ${dateStr} ${paidSoFar > 0 && status !== 'paid' ? `• Paid: RM ${paidSoFar.toFixed(2)} (Bal: RM${balance.toFixed(2)})` : ''}</p>
-            </div>
-            <div class="flex items-center gap-4">
-                <span class="font-semibold text-sm text-gray-900">RM ${Number(inv.amount).toLocaleString('en-US', {minimumFractionDigits: 2})}</span>
-                <span class="px-2.5 py-1 text-xs font-medium rounded-full ${badgeClass}">${statusText}</span>
-            </div>
-        `;
-        listEl.appendChild(item);
-    });
+    item.innerHTML = `
+      <div>
+        <h4 class="font-semibold text-gray-900 text-sm">Invoice ${invNum} • ${company}</h4>
+        <p class="text-xs text-gray-400 mt-0.5">Due ${dateStr} ${paidSoFar > 0 && status !== 'Paid' ? `• Paid: RM ${paidSoFar.toFixed(2)} (Bal: RM${balance.toFixed(2)})` : ''}</p>
+      </div>
+      <div class="flex items-center gap-4">
+        <span class="font-semibold text-sm text-gray-900">RM ${Number(inv.amount).toLocaleString('en-US', {minimumFractionDigits: 2})}</span>
+        <span class="px-2.5 py-1 text-xs font-medium rounded-full ${badgeClass}">${statusText}</span>
+      </div>
+    `;
+    listEl.appendChild(item);
+  });
 };
 
 window.setTab = function(tab) {
-    currentTab = tab;
-    ['all', 'pending', 'overdue', 'paid'].forEach(t => {
-        const btn = document.getElementById(`tab-${t}`);
-        btn.className = t === tab 
-            ? 'px-4 py-1.5 text-xs font-medium rounded-full bg-gray-200 text-gray-800' 
-            : 'px-4 py-1.5 text-xs font-medium rounded-full text-gray-500 hover:bg-gray-100';
-    });
-    renderApp();
+  currentTab = tab;
+  ['all', 'pending', 'overdue', 'paid'].forEach(t => {
+    const btn = document.getElementById(`tab-${t}`);
+    if (!btn) return;
+    btn.className = t === tab.toLowerCase()
+      ? 'px-4 py-1.5 text-xs font-medium rounded-full bg-gray-200 text-gray-800' 
+      : 'px-4 py-1.5 text-xs font-medium rounded-full text-gray-500 hover:bg-gray-100';
+  });
+  renderApp();
 };
 
 window.openNewInvoiceModal = function() {
-    document.getElementById('editInvoiceFirestoreId').value = '';
-    document.getElementById('invoiceModalTitle').innerText = 'Create New Invoice';
-    document.getElementById('invoiceSubmitBtn').innerText = 'Save Invoice';
-    document.getElementById('newInvoiceForm').reset();
-    document.getElementById('invDueDate').value = new Date().toISOString().split('T')[0];
-    document.getElementById('newInvoiceModal').classList.remove('hidden');
-    document.getElementById('newInvoiceModal').classList.add('flex');
+  document.getElementById('editInvoiceFirestoreId').value = '';
+  document.getElementById('invoiceModalTitle').innerText = 'Create New Invoice';
+  document.getElementById('invoiceSubmitBtn').innerText = 'Save Invoice';
+  document.getElementById('newInvoiceForm').reset();
+  document.getElementById('invDueDate').value = new Date().toISOString().split('T')[0];
+  document.getElementById('newInvoiceModal').classList.remove('hidden');
+  document.getElementById('newInvoiceModal').classList.add('flex');
 };
 
 window.closeNewInvoiceModal = function() {
-    document.getElementById('newInvoiceModal').classList.add('hidden');
-    document.getElementById('newInvoiceModal').classList.remove('flex');
-    document.getElementById('newInvoiceForm').reset();
+  document.getElementById('newInvoiceModal').classList.add('hidden');
+  document.getElementById('newInvoiceModal').classList.remove('flex');
+  document.getElementById('newInvoiceForm').reset();
 };
 
 window.openEditInvoiceModalFromDetail = function() {
-    const inv = invoices.find(i => i.firestoreId === activeFirestoreId);
-    if (!inv) return;
+  const inv = invoices.find(i => i.firestoreId === activeFirestoreId);
+  if (!inv) return;
 
-    closePaymentModal();
-    document.getElementById('editInvoiceFirestoreId').value = inv.firestoreId;
-    document.getElementById('invoiceModalTitle').innerText = 'Edit Invoice';
-    document.getElementById('invoiceSubmitBtn').innerText = 'Update Invoice';
+  closePaymentModal();
+  document.getElementById('editInvoiceFirestoreId').value = inv.firestoreId;
+  document.getElementById('invoiceModalTitle').innerText = 'Edit Invoice';
+  document.getElementById('invoiceSubmitBtn').innerText = 'Update Invoice';
 
-    document.getElementById('invNumber').value = inv.number || '';
-    document.getElementById('invCompany').value = inv.company || '';
-    document.getElementById('invAmount').value = inv.amount || '';
-    document.getElementById('invDueDate').value = inv.dueDate || '';
+  document.getElementById('invNumber').value = inv.invNo || inv.number || '';
+  document.getElementById('invCompany').value = inv.company || (inv.desc ? inv.desc.split(' - ')[1] : '') || '';
+  document.getElementById('invAmount').value = inv.amount || '';
+  document.getElementById('invDueDate').value = inv.dueDate || '';
 
-    document.getElementById('newInvoiceModal').classList.remove('hidden');
-    document.getElementById('newInvoiceModal').classList.add('flex');
+  document.getElementById('newInvoiceModal').classList.remove('hidden');
+  document.getElementById('newInvoiceModal').classList.add('flex');
 };
 
 window.handleCreateOrUpdateInvoice = async function(e) {
-    e.preventDefault();
-    const editFirestoreId = document.getElementById('editInvoiceFirestoreId').value;
-    const invNum = document.getElementById('invNumber').value.trim();
-    const comp = document.getElementById('invCompany').value.trim();
-    const amt = parseFloat(document.getElementById('invAmount').value);
-    const due = document.getElementById('invDueDate').value;
-    const todayStr = new Date().toISOString().split('T')[0];
+  e.preventDefault();
+  const editFirestoreId = document.getElementById('editInvoiceFirestoreId').value;
+  const invNum = document.getElementById('invNumber').value.trim();
+  const comp = document.getElementById('invCompany').value.trim();
+  const amt = parseFloat(document.getElementById('invAmount').value);
+  const due = document.getElementById('invDueDate').value;
+  const todayStr = new Date().toISOString().split('T')[0];
 
-    try {
-        if (!editFirestoreId) {
-            // 新建发票
-            const newInvData = {
-                userId: currentUid,
-                number: invNum,
-                company: comp,
-                amount: amt,
-                dueDate: due,
-                payments: []
-            };
-            const docRef = await addDoc(collection(db, "invoices"), newInvData);
+  try {
+    if (!editFirestoreId) {
+      await addDoc(collection(db, "transactions"), {
+        userId: currentUid,
+        type: 'Income',
+        category: 'Invoice',
+        invNo: invNum,
+        company: comp,
+        desc: `Invoice ${invNum} - ${comp}`,
+        amount: amt.toString(),
+        date: todayStr,
+        dueDate: due,
+        status: 'Pending',
+        paidDate: '',
+        payments: []
+      });
+      alert("New invoice created successfully!");
+    } else {
+      const reason = prompt("Please enter the reason for editing this invoice:");
+      if (reason === null) return;
 
-            // 同时写入对应的交易记录
-            await addDoc(collection(db, "transactions"), {
-                userId: currentUid,
-                type: 'Income',
-                category: 'Invoice',
-                invNo: invNum,
-                desc: `Invoice ${invNum} - ${comp}`,
-                amount: amt.toString(),
-                date: todayStr,
-                dueDate: due,
-                status: 'Pending',
-                paidDate: '',
-                invoiceId: docRef.id
-            });
+      const oldInv = invoices.find(i => i.firestoreId === editFirestoreId);
+      if (!oldInv) return;
 
-            alert("New invoice created successfully to cloud!");
-        } else {
-            // 编辑更新发票
-            const reason = prompt("Please enter the reason for editing this invoice:");
-            if (reason === null) return;
+      await updateDoc(doc(db, "transactions", editFirestoreId), {
+        invNo: invNum,
+        company: comp,
+        desc: `Invoice ${invNum} - ${comp}`,
+        amount: amt.toString(),
+        dueDate: due
+      });
 
-            const existingIndex = invoices.findIndex(i => i.firestoreId === editFirestoreId);
-            if (existingIndex === -1) return;
+      await addDoc(collection(db, "history"), {
+        userId: currentUid,
+        id: Date.now(),
+        action: 'Edit Invoice',
+        oldEntry: {
+          title: `Invoice ${oldInv.invNo || oldInv.number} - ${oldInv.company}`,
+          amount: oldInv.amount,
+          type: 'Income',
+          category: 'Invoice',
+          date: oldInv.dueDate
+        },
+        entry: {
+          title: `Invoice ${invNum} - ${comp}`,
+          amount: amt,
+          type: 'Income',
+          category: 'Invoice',
+          date: due
+        },
+        reason: reason.trim() || "No reason provided",
+        deletedAtTimestamp: new Date().getTime(),
+        deletedAtDate: todayStr
+      });
 
-            const oldInv = invoices[existingIndex];
-
-            // 更新云端发票
-            await updateDoc(doc(db, "invoices", editFirestoreId), {
-                number: invNum,
-                company: comp,
-                amount: amt,
-                dueDate: due
-            });
-
-            // 写入云端历史日志
-            await addDoc(collection(db, "history"), {
-                userId: currentUid,
-                id: Date.now(),
-                action: 'Edit Invoice',
-                oldEntry: {
-                    title: `Invoice ${oldInv.number} - ${oldInv.company}`,
-                    desc: `Invoice ${oldInv.number} - ${oldInv.company}`,
-                    amount: oldInv.amount,
-                    type: 'Income',
-                    category: 'Invoice',
-                    date: oldInv.dueDate
-                },
-                entry: {
-                    title: `Invoice ${invNum} - ${comp}`,
-                    desc: `Invoice ${invNum} - ${comp}`,
-                    amount: amt,
-                    type: 'Income',
-                    category: 'Invoice',
-                    date: due
-                },
-                reason: reason.trim() || "No reason provided",
-                deletedAtTimestamp: new Date().getTime(),
-                deletedAtDate: todayStr
-            });
-
-            alert("Invoice updated successfully!");
-        }
-
-        closeNewInvoiceModal();
-        await loadInvoicesFromCloud();
-        renderApp();
-    } catch (err) {
-        console.error("Error saving invoice:", err);
-        alert("Failed to save invoice.");
+      alert("Invoice updated successfully!");
     }
+
+    closeNewInvoiceModal();
+  } catch (err) {
+    console.error("Error saving invoice:", err);
+    alert("Failed to save invoice.");
+  }
 };
 
 window.openPaymentModal = function(firestoreId) {
-    activeFirestoreId = firestoreId;
-    const inv = invoices.find(i => i.firestoreId === firestoreId);
-    if (!inv) return;
+  activeFirestoreId = firestoreId;
+  const inv = invoices.find(i => i.firestoreId === firestoreId);
+  if (!inv) return;
 
-    document.getElementById('modalInvTitle').innerText = `Invoice ${inv.number} - ${inv.company}`;
-    document.getElementById('modalInvSub').innerText = `Due Date: ${inv.dueDate}`;
-    document.getElementById('payDate').value = new Date().toISOString().split('T')[0];
+  const invNum = inv.invNo || inv.number || '';
+  const comp = inv.company || '';
 
-    updatePaymentModalUI(inv);
-    document.getElementById('paymentModal').classList.remove('hidden');
-    document.getElementById('paymentModal').classList.add('flex');
+  document.getElementById('modalInvTitle').innerText = `Invoice ${invNum} - ${comp}`;
+  document.getElementById('modalInvSub').innerText = `Due Date: ${inv.dueDate}`;
+  document.getElementById('payDate').value = new Date().toISOString().split('T')[0];
+
+  updatePaymentModalUI(inv);
+  document.getElementById('paymentModal').classList.remove('hidden');
+  document.getElementById('paymentModal').classList.add('flex');
 };
 
 window.closePaymentModal = function() {
-    document.getElementById('paymentModal').classList.add('hidden');
-    document.getElementById('paymentModal').classList.remove('flex');
-    activeFirestoreId = null;
-    renderApp();
+  document.getElementById('paymentModal').classList.add('hidden');
+  document.getElementById('paymentModal').classList.remove('flex');
+  activeFirestoreId = null;
+  renderApp();
 };
 
 function updatePaymentModalUI(inv) {
-    const { paidSoFar, balance } = getInvoiceDetails(inv);
+  const { paidSoFar, balance } = getInvoiceDetails(inv);
 
-    document.getElementById('modalTotalAmount').innerText = `RM ${Number(inv.amount).toFixed(2)}`;
-    document.getElementById('modalPaidAmount').innerText = `RM ${paidSoFar.toFixed(2)}`;
-    document.getElementById('modalBalanceAmount').innerText = `RM ${balance.toFixed(2)}`;
+  document.getElementById('modalTotalAmount').innerText = `RM ${Number(inv.amount).toFixed(2)}`;
+  document.getElementById('modalPaidAmount').innerText = `RM ${paidSoFar.toFixed(2)}`;
+  document.getElementById('modalBalanceAmount').innerText = `RM ${balance.toFixed(2)}`;
 
-    document.getElementById('addPaymentBox').style.display = balance <= 0 ? 'none' : 'block';
+  document.getElementById('addPaymentBox').style.display = balance <= 0 ? 'none' : 'block';
 
-    const historyList = document.getElementById('paymentHistoryList');
-    historyList.innerHTML = '';
+  const historyList = document.getElementById('paymentHistoryList');
+  historyList.innerHTML = '';
 
-    if (!inv.payments || inv.payments.length === 0) {
-        historyList.innerHTML = `<p class="text-xs text-gray-400 italic">No payments recorded yet.</p>`;
-    } else {
-        inv.payments.forEach(p => {
-            const row = document.createElement('div');
-            row.className = 'flex justify-between items-center text-xs bg-gray-50 p-2 rounded';
-            row.innerHTML = `
-                <span class="text-gray-600">${p.date}</span>
-                <span class="font-semibold text-emerald-600">+ RM ${Number(p.amount).toFixed(2)}</span>
-            `;
-            historyList.appendChild(row);
-        });
-    }
+  if (!inv.payments || inv.payments.length === 0) {
+    historyList.innerHTML = `<p class="text-xs text-gray-400 italic">No payments recorded yet.</p>`;
+  } else {
+    inv.payments.forEach(p => {
+      const row = document.createElement('div');
+      row.className = 'flex justify-between items-center text-xs bg-gray-50 p-2 rounded';
+      row.innerHTML = `
+        <span class="text-gray-600">${p.date}</span>
+        <span class="font-semibold text-emerald-600">+ RM ${Number(p.amount).toFixed(2)}</span>
+      `;
+      historyList.appendChild(row);
+    });
+  }
 }
 
 window.handleAddPayment = async function() {
-    const date = document.getElementById('payDate').value;
-    const amount = parseFloat(document.getElementById('payAmount').value);
+  const date = document.getElementById('payDate').value;
+  const amount = parseFloat(document.getElementById('payAmount').value);
 
-    if (!date || isNaN(amount) || amount <= 0) {
-        alert('Please enter a valid date and payment amount.');
-        return;
-    }
+  if (!date || isNaN(amount) || amount <= 0) {
+    alert('Please enter a valid date and payment amount.');
+    return;
+  }
 
-    const inv = invoices.find(i => i.firestoreId === activeFirestoreId);
-    if (!inv) return;
+  const inv = invoices.find(i => i.firestoreId === activeFirestoreId);
+  if (!inv) return;
 
-    const { balance } = getInvoiceDetails(inv);
-    if (amount > balance) {
-        alert(`Payment amount cannot exceed remaining balance (RM ${balance.toFixed(2)}).`);
-        return;
-    }
+  const { balance } = getInvoiceDetails(inv);
+  if (amount > balance) {
+    alert(`Payment amount cannot exceed remaining balance (RM ${balance.toFixed(2)}).`);
+    return;
+  }
 
-    const updatedPayments = [...(inv.payments || []), { date, amount }];
+  const updatedPayments = [...(inv.payments || []), { date, amount }];
+  const newPaidSoFar = updatedPayments.reduce((sum, p) => sum + Number(p.amount), 0);
+  const newStatus = newPaidSoFar >= Number(inv.amount) ? 'Paid' : 'Pending';
 
-    try {
-        await updateDoc(doc(db, "invoices", inv.firestoreId), {
-            payments: updatedPayments
-        });
+  try {
+    // 1. 更新当前发票自身的还款进度和状态
+    await updateDoc(doc(db, "transactions", inv.firestoreId), {
+      payments: updatedPayments,
+      status: newStatus,
+      paidDate: newStatus === 'Paid' ? date : (inv.paidDate || '')
+    });
 
-        // 同时新增一条销售/收款收入交易记录
-        await addDoc(collection(db, "transactions"), {
-            userId: currentUid,
-            type: 'Income',
-            category: 'Sales',
-            desc: `Invoice Payment: ${inv.number} (${inv.company})`,
-            amount: amount.toString(),
-            date: date,
-            paidDate: date,
-            status: 'Paid',
-            invoiceId: inv.firestoreId
-        });
+    // 2. 同时在 transactions 中单独新增一条“收款入账”记录，使 Dashboard、Transactions、Reports 实时增加该笔金额
+    const invNum = inv.invNo || inv.number || 'N/A';
+    const companyName = inv.company || 'Client';
+    await addDoc(collection(db, "transactions"), {
+      userId: currentUid,
+      type: 'Income',
+      category: 'Payment Received',
+      desc: `Payment for Invoice ${invNum} (${companyName})`,
+      amount: amount.toString(),
+      date: date,
+      invoiceId: inv.firestoreId
+    });
 
-        inv.payments = updatedPayments;
-        document.getElementById('payAmount').value = '';
-        updatePaymentModalUI(inv);
-        await loadInvoicesFromCloud();
-    } catch (e) {
-        console.error("Error adding payment:", e);
-        alert("Failed to record payment.");
-    }
+    inv.payments = updatedPayments;
+    inv.status = newStatus;
+    document.getElementById('payAmount').value = '';
+    updatePaymentModalUI(inv);
+    alert("Payment recorded and synced to dashboard successfully!");
+  } catch (e) {
+    console.error("Error adding payment:", e);
+    alert("Failed to record payment.");
+  }
 };
 
 window.handleDeleteInvoice = async function() {
-    if (!activeFirestoreId) return;
+  if (!activeFirestoreId) return;
 
-    const reason = prompt("Please enter the reason for deleting this invoice:");
-    if (reason === null) return; 
+  const reason = prompt("Please enter the reason for deleting this invoice:");
+  if (reason === null) return; 
 
-    const targetInvoice = invoices.find(i => i.firestoreId === activeFirestoreId);
-    if (!targetInvoice) return;
+  const targetInvoice = invoices.find(i => i.firestoreId === activeFirestoreId);
+  if (!targetInvoice) return;
 
-    try {
-        // 从云端删除发票
-        await deleteDoc(doc(db, "invoices", activeFirestoreId));
+  try {
+    await deleteDoc(doc(db, "transactions", activeFirestoreId));
 
-        // 记录到云端历史日志
-        await addDoc(collection(db, "history"), {
-            userId: currentUid,
-            id: Date.now(),
-            action: 'Delete Invoice',
-            entry: { 
-                title: `Invoice ${targetInvoice.number} - ${targetInvoice.company}`, 
-                amount: targetInvoice.amount, 
-                type: 'Income', 
-                category: 'Invoice' 
-            },
-            reason: reason.trim() || "No reason provided",
-            deletedAtTimestamp: new Date().getTime(),
-            deletedAtDate: new Date().toISOString().split('T')[0]
-        });
+    await addDoc(collection(db, "history"), {
+      userId: currentUid,
+      id: Date.now(),
+      action: 'Delete Invoice',
+      entry: { 
+        title: `Invoice ${targetInvoice.invNo || targetInvoice.number} - ${targetInvoice.company}`, 
+        amount: targetInvoice.amount, 
+        type: 'Income', 
+        category: 'Invoice' 
+      },
+      reason: reason.trim() || "No reason provided",
+      deletedAtTimestamp: new Date().getTime(),
+      deletedAtDate: new Date().toISOString().split('T')[0]
+    });
 
-        closePaymentModal();
-        await loadInvoicesFromCloud();
-        renderApp();
-        alert("Invoice deleted and recorded in History.");
-    } catch (e) {
-        console.error("Error deleting invoice:", e);
-        alert("Failed to delete invoice.");
-    }
+    closePaymentModal();
+    alert("Invoice deleted and recorded in History.");
+  } catch (e) {
+    console.error("Error deleting invoice:", e);
+    alert("Failed to delete invoice.");
+  }
 };
 </script>
 
