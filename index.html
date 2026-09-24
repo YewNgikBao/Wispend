@@ -1,0 +1,714 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>Wispend | Digital Bookkeeping</title>
+
+<!-- 关联清单 -->
+<link rel="manifest" href="manifest.json">
+
+<!-- 针对苹果 iOS 设备的专用图标支持 -->
+<link rel="apple-touch-icon" sizes="180x180" href="https://lh3.google.com/u/0/d/1-WvkMpo2mSk6F3rouTRuoMFT7JAh5e9M">
+
+<!-- 手机端全屏及主题色配置 -->
+<meta name="apple-mobile-web-app-capable" content="yes">
+<meta name="apple-mobile-web-app-status-bar-style" content="black-translucent">
+<meta name="theme-color" content="#3b574a">
+
+<style>
+*{
+margin:0;
+padding:0;
+box-sizing:border-box;
+}
+body{
+font-family:Arial,Helvetica,sans-serif;
+background:#f5f8fb;
+color:#183247;
+min-height:100vh;
+}
+
+/* =========================
+NAVBAR
+========================= */
+.navbar{
+width:100%;
+background:white;
+border-bottom:1px solid #e1e8ef;
+padding:18px 7%;
+display:flex;
+align-items:center;
+justify-content:space-between;
+position:sticky;
+top:0;
+z-index:100;
+}
+.logo{
+font-size:25px;
+font-weight:800;
+letter-spacing:2px;
+color:#173f5f;
+display: flex;
+align-items: center;
+gap: 12px;
+}
+.sidebar-logo-img{
+width: 36px;
+height: 36px;
+border-radius: 10px;
+object-fit: cover;
+flex-shrink: 0;
+box-shadow: 0 1px 2px rgba(0,0,0,0.05);
+}
+.nav-buttons{
+display:flex;
+gap:10px;
+}
+.nav-btn{
+padding:10px 18px;
+border-radius:8px;
+border:none;
+cursor:pointer;
+font-weight:600;
+font-size:14px;
+}
+.login-btn{
+background:transparent;
+color:#173f5f;
+border:1px solid #173f5f;
+}
+.register-btn{
+background:#173f5f;
+color:white;
+}
+.nav-btn:hover{
+opacity:.85;
+}
+
+/* =========================
+HERO
+========================= */
+.hero{
+max-width:1200px;
+margin:auto;
+min-height:calc(100vh - 80px);
+padding:70px 7%;
+display:grid;
+grid-template-columns:1fr 1fr;
+align-items:center;
+gap:60px;
+}
+.hero-text{
+max-width:600px;
+}
+.small-title{
+color:#3caea3;
+font-size:14px;
+font-weight:800;
+letter-spacing:2px;
+text-transform:uppercase;
+margin-bottom:15px;
+}
+h1{
+font-size:clamp(42px,5vw,70px);
+line-height:1.05;
+color:#173f5f;
+margin-bottom:25px;
+}
+.hero-text p{
+color:#6b7c8f;
+font-size:18px;
+line-height:1.7;
+}
+.hero-buttons{
+display:flex;
+gap:12px;
+margin-top:30px;
+flex-wrap:wrap;
+}
+.hero-btn{
+padding:14px 22px;
+border-radius:9px;
+border:none;
+cursor:pointer;
+font-weight:700;
+font-size:15px;
+}
+.primary{
+background:#173f5f;
+color:white;
+}
+.secondary{
+background:#e8f2f7;
+color:#173f5f;
+}
+
+/* =========================
+DASHBOARD PREVIEW
+========================= */
+.preview{
+background:#173f5f;
+border-radius:22px;
+padding:25px;
+box-shadow:0 20px 50px rgba(23,63,95,.15);
+}
+.preview-header{
+display:flex;
+justify-content:space-between;
+color:white;
+margin-bottom:20px;
+}
+.preview-title{
+font-weight:700;
+}
+.preview-date{
+font-size:12px;
+opacity:.7;
+}
+.stats{
+display:grid;
+grid-template-columns:repeat(3,1fr);
+gap:12px;
+}
+.stat{
+background:rgba(255,255,255,.1);
+padding:18px;
+border-radius:12px;
+}
+.stat span{
+display:block;
+color:rgba(255,255,255,.65);
+font-size:12px;
+margin-bottom:6px;
+}
+.stat strong{
+color:white;
+font-size:18px;
+}
+.chart{
+margin-top:20px;
+background:rgba(255,255,255,.06);
+border-radius:12px;
+height:190px;
+padding:20px;
+display:flex;
+align-items:end;
+gap:12px;
+}
+.bar{
+flex:1;
+background:#3caea3;
+border-radius:5px 5px 0 0;
+}
+
+/* =========================
+MODAL
+========================= */
+.modal{
+display:none;
+position:fixed;
+inset:0;
+background:rgba(0,0,0,.45);
+justify-content:center;
+align-items:center;
+padding:20px;
+z-index:1000;
+}
+.modal.active{
+display:flex;
+}
+.modal-box{
+width:100%;
+max-width:430px;
+background:white;
+border-radius:18px;
+padding:30px;
+position:relative;
+box-shadow:0 20px 60px rgba(0,0,0,.2);
+}
+.close{
+position:absolute;
+right:20px;
+top:15px;
+border:none;
+background:none;
+font-size:25px;
+cursor:pointer;
+color:#6b7c8f;
+}
+.modal-box h2{
+color:#173f5f;
+margin-bottom:7px;
+}
+.modal-description{
+color:#6b7c8f;
+font-size:14px;
+margin-bottom:22px;
+}
+.form-group{
+margin-bottom:16px;
+}
+.form-group label{
+display:block;
+font-size:14px;
+font-weight:700;
+margin-bottom:7px;
+}
+.form-group input{
+width:100%;
+padding:12px;
+border:1px solid #dfe7ef;
+border-radius:8px;
+outline:none;
+font-size:15px;
+}
+.form-group input:focus{
+border-color:#20639b;
+}
+.form-submit{
+width:100%;
+padding:13px;
+border:none;
+border-radius:8px;
+background:#173f5f;
+color:white;
+font-weight:700;
+cursor:pointer;
+margin-top:5px;
+}
+.switch{
+text-align:center;
+margin-top:18px;
+color:#6b7c8f;
+font-size:14px;
+}
+.switch button{
+border:none;
+background:none;
+color:#20639b;
+font-weight:700;
+cursor:pointer;
+}
+.error{
+display:none;
+background:#fff0ed;
+color:#c94d35;
+padding:10px;
+border-radius:7px;
+font-size:13px;
+margin-bottom:15px;
+}
+.success{
+display:none;
+background:#eaf7f3;
+color:#24695f;
+padding:10px;
+border-radius:7px;
+font-size:13px;
+margin-bottom:15px;
+}
+
+/* =========================
+RESPONSIVE
+========================= */
+@media(max-width:850px){
+.hero{
+grid-template-columns:1fr;
+padding-top:50px;
+}
+.hero-text{
+text-align:center;
+margin:auto;
+}
+.hero-buttons{
+justify-content:center;
+}
+}
+@media(max-width:500px){
+.navbar{
+padding:15px 20px;
+}
+.logo{
+font-size:20px;
+}
+.nav-btn{
+padding:8px 12px;
+font-size:12px;
+}
+.hero{
+padding:45px 20px;
+}
+h1{
+font-size:43px;
+}
+.stats{
+grid-template-columns:1fr;
+}
+}
+</style>
+</head>
+
+<body>
+
+<!-- =========================
+NAVBAR
+========================= -->
+<header class="navbar">
+<div class="logo">
+<img src="https://lh3.google.com/u/0/d/1-WvkMpo2mSk6F3rouTRuoMFT7JAh5e9M" alt="Logo" class="sidebar-logo-img">
+<span>WISPEND</span>
+</div>
+<div class="nav-buttons">
+<button class="nav-btn login-btn" onclick="openLogin()">
+Login
+</button>
+<button class="nav-btn register-btn" onclick="openRegister()">
+Register
+</button>
+</div>
+</header>
+
+<!-- =========================
+HERO
+========================= -->
+<main class="hero">
+<section class="hero-text">
+<div class="small-title">
+DIGITAL BOOKKEEPING
+</div>
+<h1>
+Simple Bookkeeping.
+<br>
+Better Business.
+</h1>
+<p>
+Wispend is a simple and affordable
+digital bookkeeping service designed
+mainly for small grocery shops and
+their owners.
+</p>
+<div class="hero-buttons">
+<button class="hero-btn primary" onclick="openRegister()">
+Get Started
+</button>
+<button class="hero-btn secondary" onclick="openLogin()">
+Login
+</button>
+</div>
+</section>
+
+<!-- =========================
+DASHBOARD PREVIEW
+========================= -->
+<section class="preview">
+<div class="preview-header">
+<span class="preview-title">
+Monthly Overview
+</span>
+<span class="preview-date">
+Wispend Dashboard
+</span>
+</div>
+
+<div class="stats">
+<div class="stat">
+<span>
+Sales
+</span>
+<strong>
+RM 8,420.00
+</strong>
+</div>
+
+<div class="stat">
+<span>
+Expenses
+</span>
+<strong>
+RM 3,250.00
+</strong>
+</div>
+
+<div class="stat">
+<span>
+Balance
+</span>
+<strong>
+RM 5,170.00
+</strong>
+</div>
+</div>
+
+<div class="chart">
+<div class="bar" style="height:45%"></div>
+<div class="bar" style="height:60%"></div>
+<div class="bar" style="height:52%"></div>
+<div class="bar" style="height:75%"></div>
+<div class="bar" style="height:65%"></div>
+<div class="bar" style="height:90%"></div>
+<div class="bar" style="height:80%"></div>
+</div>
+</section>
+</main>
+
+<!-- =========================
+LOGIN MODAL
+========================= -->
+<div class="modal" id="loginModal">
+<div class="modal-box">
+<button class="close" onclick="closeModals()">
+×
+</button>
+<h2>
+Welcome Back
+</h2>
+<p class="modal-description">
+Login using your email and password.
+</p>
+
+<div class="error" id="loginError"></div>
+
+<form onsubmit="login(event)">
+<div class="form-group">
+<label>
+Email Address
+</label>
+<input type="email" id="loginEmail" placeholder="Enter your email" required>
+</div>
+
+<div class="form-group">
+<label>
+Password
+</label>
+<input type="password" id="loginPassword" placeholder="Enter your password" required>
+</div>
+
+<button class="form-submit" type="submit">
+Login
+</button>
+</form>
+
+<div class="switch">
+Don't have an account?
+<button onclick="switchToRegister()">
+Register
+</button>
+</div>
+</div>
+</div>
+
+<!-- =========================
+REGISTER MODAL
+========================= -->
+<div class="modal" id="registerModal">
+<div class="modal-box">
+<button class="close" onclick="closeModals()">
+×
+</button>
+<h2>
+Create Account
+</h2>
+<p class="modal-description">
+Create your Wispend account.
+</p>
+
+<div class="error" id="registerError"></div>
+<div class="success" id="registerSuccess"></div>
+
+<form onsubmit="register(event)">
+<div class="form-group">
+<label>
+Name
+</label>
+<input type="text" id="registerName" placeholder="Enter your name" required>
+</div>
+
+<div class="form-group">
+<label>
+Email
+</label>
+<input type="email" id="registerEmail" placeholder="Enter your email" required>
+</div>
+
+<div class="form-group">
+<label>
+Password
+</label>
+<input type="password" id="registerPassword" placeholder="Create a password" minlength="8" required>
+</div>
+
+<button class="form-submit" type="submit">
+Create Account
+</button>
+</form>
+
+<div class="switch">
+Already have an account?
+<button onclick="switchToLogin()">
+Login
+</button>
+</div>
+</div>
+</div>
+
+<!-- =========================
+FIREBASE AUTH SCRIPT
+========================= -->
+<script type="module">
+import { initializeApp } from "https://www.gstatic.com/firebasejs/10.8.0/firebase-app.js";
+import { getAuth, createUserWithEmailAndPassword, signInWithEmailAndPassword } from "https://www.gstatic.com/firebasejs/10.8.0/firebase-auth.js";
+
+const firebaseConfig = {
+apiKey: "AIzaSyDKXFjTwZ92ITi-s4Sbph_bjNjuvkNQOb4",
+authDomain: "wispend-1234.firebaseapp.com",
+projectId: "wispend-1234",
+storageBucket: "wispend-1234.firebasestorage.app",
+messagingSenderId: "227503315553",
+appId: "1:227503315553:web:a913fdcab269787e926820",
+measurementId: "G-L3S3EK3Q1Z"
+};
+
+const app = initializeApp(firebaseConfig);
+const auth = getAuth(app);
+
+/* =========================
+MODAL FUNCTIONS
+========================= */
+window.openLogin = function(){
+closeModals();
+document.getElementById("loginModal").classList.add("active");
+}
+
+window.openRegister = function(){
+closeModals();
+document.getElementById("registerModal").classList.add("active");
+}
+
+window.closeModals = function(){
+document.querySelectorAll(".modal").forEach(modal => {
+modal.classList.remove("active");
+});
+}
+
+window.switchToRegister = function(){
+openRegister();
+}
+
+window.switchToLogin = function(){
+openLogin();
+}
+
+// 兼容手机本地文件协议（file:// 或 content://）的绝对目录跳转函数
+function redirectToDashboard() {
+const currentPath = window.location.pathname;
+const dirPath = currentPath.substring(0, currentPath.lastIndexOf('/') + 1);
+window.location.href = dirPath + "dashboard.html";
+}
+
+/* =========================
+REGISTER (Firebase Auth Only)
+========================= */
+window.register = async function(event){
+event.preventDefault();
+
+const name = document.getElementById("registerName").value.trim();
+const email = document.getElementById("registerEmail").value.trim().toLowerCase();
+const password = document.getElementById("registerPassword").value;
+
+const error = document.getElementById("registerError");
+const success = document.getElementById("registerSuccess");
+
+error.style.display = "none";
+success.style.display = "none";
+
+if(password.length < 8){
+error.textContent = "Password must be at least 8 characters.";
+error.style.display = "block";
+return;
+}
+
+try {
+const userCredential = await createUserWithEmailAndPassword(auth, email, password);
+const uid = userCredential.user.uid;
+
+const userData = { 
+id: uid, 
+name: name, 
+email: email, 
+createdAt: new Date().toISOString() 
+};
+
+localStorage.setItem("wispendCurrentUser", JSON.stringify(userData));
+redirectToDashboard();
+
+} catch (e) {
+console.error(e);
+let msg = "Registration failed.";
+if (e.code === 'auth/email-already-in-use') {
+msg = "This email is already registered.";
+} else if (e.code === 'auth/invalid-email') {
+msg = "Invalid email format.";
+} else {
+msg = "Error: " + e.code;
+}
+error.textContent = msg;
+error.style.display = "block";
+}
+}
+
+/* =========================
+LOGIN (Firebase Auth Only)
+========================= */
+window.login = async function(event){
+event.preventDefault();
+
+const email = document.getElementById("loginEmail").value.trim().toLowerCase();
+const password = document.getElementById("loginPassword").value;
+const error = document.getElementById("loginError");
+
+error.style.display = "none";
+
+try {
+const userCredential = await signInWithEmailAndPassword(auth, email, password);
+const uid = userCredential.user.uid;
+
+const existingUser = JSON.parse(localStorage.getItem("wispendCurrentUser"));
+const userName = (existingUser && existingUser.email === email) ? existingUser.name : email.split('@')[0];
+
+const userData = { 
+id: uid, 
+name: userName, 
+email: email 
+};
+
+localStorage.setItem("wispendCurrentUser", JSON.stringify(userData));
+redirectToDashboard();
+
+} catch (e) {
+console.error(e);
+let msg = "Login failed.";
+if (e.code === 'auth/invalid-credential' || e.code === 'auth/wrong-password' || e.code === 'auth/user-not-found') {
+msg = "Invalid email or password.";
+} else {
+msg = "Error: " + e.code;
+}
+error.textContent = msg;
+error.style.display = "block";
+}
+}
+
+/* =========================
+CLOSE WHEN CLICK OUTSIDE
+========================= */
+document.querySelectorAll(".modal").forEach(modal => {
+modal.addEventListener("click", function(event){
+if(event.target === modal){
+closeModals();
+}
+});
+});
+</script>
+
+</body>
+</html>

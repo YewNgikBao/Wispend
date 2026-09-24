@@ -1,0 +1,536 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>History & Recovery - WISPEND</title>
+
+<!-- 关联清单 -->
+<link rel="manifest" href="manifest.json">
+
+<!-- 针对苹果 iOS 设备的专用图标支持 -->
+<link rel="apple-touch-icon" sizes="180x180" href="https://lh3.google.com/u/0/d/1-WvkMpo2mSk6F3rouTRuoMFT7JAh5e9M">
+
+<!-- 手机端全屏及主题色配置 -->
+<meta name="apple-mobile-web-app-capable" content="yes">
+<meta name="apple-mobile-web-app-status-bar-style" content="black-translucent">
+<meta name="theme-color" content="#3b574a">
+
+<style>
+* { 
+margin: 0; 
+padding: 0; 
+box-sizing: border-box; 
+font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, sans-serif; 
+}
+
+body { 
+background-color: #f3f5f2; 
+color: #1f302b; 
+display: flex; 
+min-height: 100vh; 
+}
+
+/* 左侧 Sidebar：固定不动，内部上下分栏 */
+.sidebar { 
+width: 240px; 
+background: #f3f5f2; 
+padding: 25px 20px; 
+display: flex; 
+flex-direction: column; 
+justify-content: space-between; 
+border-right: 1px solid #e2e8e4; 
+flex-shrink: 0;
+height: 100vh;
+position: sticky;
+top: 0;
+}
+
+/* 顶部 Profile 区域 */
+.user-profile { 
+display: flex; 
+align-items: center; 
+gap: 12px; 
+cursor: pointer; 
+padding: 10px; 
+border-radius: 12px; 
+background: #e9efe7;
+transition: background 0.2s; 
+text-decoration: none; 
+color: inherit; 
+border: 1px solid #dcded9;
+margin-bottom: 25px;
+}
+
+.user-profile:hover { background: #dfe7dc; }
+
+.avatar { 
+width: 38px; 
+height: 38px; 
+background: #4a7c6d; 
+color: white; 
+border-radius: 50%; 
+display: flex; 
+align-items: center; 
+justify-content: center; 
+font-weight: bold; 
+font-size: 16px; 
+flex-shrink: 0;
+overflow: hidden;
+}
+
+.user-name-title { font-weight: 700; font-size: 14px; color: #1f302b; white-space: nowrap; overflow: hidden; text-overflow: ellipsis; max-width: 120px; }
+.user-name-sub { font-size: 11px; color: #697d75; }
+
+/* 导航区 */
+.nav-section-title { font-size: 11px; font-weight: 700; color: #8e9f97; letter-spacing: 1px; margin-bottom: 12px; }
+.nav-item { 
+display: block; 
+padding: 10px 14px; 
+color: #4e6158; 
+text-decoration: none; 
+border-radius: 8px; 
+font-size: 14px; 
+font-weight: 600; 
+margin-bottom: 4px; 
+transition: background 0.15s;
+}
+
+.nav-item.active { background: #dce5df; color: #1f302b; }
+.nav-item:hover:not(.active) { background: #e8eee9; }
+
+/* 左下角 Logo 区域 */
+.sidebar-footer-logo { 
+display: flex; 
+align-items: center; 
+gap: 10px; 
+padding: 10px; 
+border-top: 1px solid #e2e8e4;
+padding-top: 15px;
+}
+
+.footer-logo-img { 
+width: 32px; 
+height: 32px; 
+border-radius: 8px; 
+object-fit: cover;
+flex-shrink: 0;
+box-shadow: 0 1px 2px rgba(0,0,0,0.05);
+}
+
+.footer-logo-title { font-weight: 800; font-size: 14px; color: #1f302b; }
+.footer-logo-sub { font-size: 11px; color: #697d75; }
+
+/* 主区域 Main Content */
+.main-content { 
+flex: 1; 
+padding: 30px 40px; 
+overflow-y: auto; 
+}
+
+.top-header { 
+display: flex; 
+justify-content: space-between; 
+align-items: center; 
+margin-bottom: 25px; 
+flex-wrap: wrap;
+gap: 15px;
+}
+
+.greeting h1 { font-size: 26px; font-weight: 700; }
+.greeting p { font-size: 13px; color: #697d75; margin-top: 4px; }
+
+.panel { 
+background: white; 
+border-radius: 16px; 
+padding: 22px; 
+border: 1px solid #e1e8e3; 
+margin-bottom: 25px; 
+}
+
+.panel-title { font-size: 16px; font-weight: 700; margin-bottom: 15px; color: #1f302b; }
+
+/* 历史列表样式（折叠手风琴优化） */
+.history-list { display: flex; flex-direction: column; gap: 12px; }
+
+.history-card {
+background: #fafbf9;
+border: 1px solid #e9ede9;
+border-radius: 12px;
+transition: all 0.2s;
+overflow: hidden;
+}
+
+.history-card:hover {
+border-color: #d8ded8;
+}
+
+/* 头部概要栏（点击可展开/收起） */
+.history-summary-header {
+padding: 16px 20px;
+display: flex;
+justify-content: space-between;
+align-items: center;
+cursor: pointer;
+user-select: none;
+background: #fafbf9;
+transition: background 0.2s;
+}
+
+.history-summary-header:hover {
+background: #f4f7f4;
+}
+
+.history-summary-left {
+display: flex;
+align-items: center;
+gap: 12px;
+}
+
+.history-badge {
+font-size: 11px;
+padding: 3px 8px;
+border-radius: 6px;
+font-weight: 600;
+}
+
+.summary-title-text {
+font-size: 14px;
+font-weight: 700;
+color: #1f302b;
+}
+
+.history-summary-right {
+display: flex;
+align-items: center;
+gap: 15px;
+}
+
+.expire-text {
+font-size: 12px;
+color: #8e9f97;
+white-space: nowrap;
+}
+
+.expand-arrow {
+font-size: 12px;
+color: #8e9f97;
+transition: transform 0.3s ease;
+}
+
+.history-card.expanded .expand-arrow {
+transform: rotate(180deg);
+}
+
+/* 详细内容折叠区（默认收起） */
+.history-details-body {
+max-height: 0;
+overflow: hidden;
+transition: max-height 0.35s ease-in-out, padding 0.35s ease-in-out;
+padding: 0 20px;
+background: #ffffff;
+border-top: 1px solid transparent;
+}
+
+.history-card.expanded .history-details-body {
+max-height: 500px; /* 预留足够高度 */
+padding: 16px 20px;
+border-top-color: #e9ede9;
+}
+
+.history-meta {
+font-size: 13px;
+color: #697d75;
+margin-bottom: 10px;
+}
+
+/* 修改前后对比卡片布局 */
+.history-comparison {
+display: grid;
+grid-template-columns: 1fr 1fr;
+gap: 12px;
+margin-top: 8px;
+margin-bottom: 12px;
+background: #f2f5f3;
+padding: 10px;
+border-radius: 10px;
+border: 1px solid #e1e8e3;
+}
+
+.compare-box {
+background: #ffffff;
+padding: 8px 12px;
+border-radius: 8px;
+border: 1px solid #e4e9e5;
+font-size: 13px;
+}
+
+.compare-box.old {
+border-left: 3px solid #d97706; 
+}
+
+.compare-box.new {
+border-left: 3px solid #3b574a; 
+}
+
+.compare-title {
+font-size: 11px;
+font-weight: 700;
+text-transform: uppercase;
+margin-bottom: 4px;
+letter-spacing: 0.5px;
+}
+
+.compare-box.old .compare-title { color: #b45309; }
+.compare-box.new .compare-title { color: #3b574a; }
+
+.history-reason {
+font-size: 13px;
+color: #4e6158;
+margin-bottom: 12px;
+background: #f0f4f1;
+padding: 8px 12px;
+border-radius: 6px;
+}
+
+.history-action-footer {
+display: flex;
+justify-content: space-between;
+align-items: center;
+margin-top: 10px;
+padding-top: 10px;
+border-top: 1px solid #f0f4f1;
+}
+
+.btn-restore {
+background: #4a7c6d;
+color: white;
+border: none;
+padding: 8px 16px;
+border-radius: 8px;
+font-weight: 600;
+font-size: 13px;
+cursor: pointer;
+transition: background 0.2s;
+}
+
+.btn-restore:hover { background: #3b6458; }
+
+.empty-state {
+text-align: center;
+padding: 40px;
+color: #8e9f97;
+font-size: 14px;
+}
+</style>
+</head>
+
+<body>
+
+<!-- 左侧固定 Sidebar -->
+<aside class="sidebar">
+<div>
+<a href="profile.html" class="user-profile" title="View Profile">
+<div class="avatar" id="userAvatar">U</div>
+<div style="overflow: hidden;">
+<div class="user-name-title" id="userNameDisplay">User Name</div>
+<div class="user-name-sub">View Profile</div>
+</div>
+</a>
+
+<nav class="nav-section">
+<div class="nav-section-title">WORKSPACE</div>
+<a href="dashboard.html" class="nav-item">Dashboard</a>
+<a href="transactions.html" class="nav-item">Transactions</a>
+<a href="invoices.html" class="nav-item">Invoices</a>
+<a href="reports.html" class="nav-item">Reports</a>
+<a href="history.html" class="nav-item active">History</a>
+</nav>
+</div>
+
+<div class="sidebar-footer-logo">
+<img src="https://lh3.google.com/u/0/d/1-WvkMpo2mSk6F3rouTRuoMFT7JAh5e9M" alt="Logo" class="footer-logo-img">
+<div>
+<div class="footer-logo-title">WISPEND</div>
+<div class="footer-logo-sub">Financial Ledger</div>
+</div>
+</div>
+</aside>
+
+<!-- 主界面 -->
+<main class="main-content">
+<header class="top-header">
+<div class="greeting">
+<h1>Operation History</h1>
+<p>Manage deleted transactions and modifications within 30 days. Click to expand details.</p>
+</div>
+</header>
+
+<div class="panel">
+<div class="panel-title">Activity & Change Log (Retention: 30 Days)</div>
+<div class="history-list" id="historyContainer">
+<!-- 动态渲染 -->
+</div>
+</div>
+</main>
+
+<script>
+window.onload = function() {
+loadUserData();
+renderHistory();
+};
+
+function loadUserData() {
+const currentUser = JSON.parse(localStorage.getItem("wispendCurrentUser"));
+if (currentUser && currentUser.name) {
+document.getElementById("userNameDisplay").textContent = currentUser.name;
+const avatarEl = document.getElementById("userAvatar");
+if (currentUser.avatar) {
+avatarEl.innerHTML = `<img src="${currentUser.avatar}" alt="Avatar" style="width:100%; height:100%; object-fit:cover; border-radius:50%;">`;
+} else {
+avatarEl.textContent = currentUser.name.charAt(0).toUpperCase();
+}
+} else {
+window.location.href = "index.html";
+}
+}
+
+function renderHistory() {
+const container = document.getElementById("historyContainer");
+let historyList = JSON.parse(localStorage.getItem("wispendHistory") || "[]");
+
+const now = new Date().getTime();
+const thirtyDaysMs = 30 * 24 * 60 * 60 * 1000;
+
+const validHistory = historyList.filter(item => {
+const timestamp = item.deletedAtTimestamp || item.timestamp || now;
+return (now - timestamp) < thirtyDaysMs;
+});
+
+if (validHistory.length !== historyList.length) {
+localStorage.setItem("wispendHistory", JSON.stringify(validHistory));
+}
+
+if (validHistory.length === 0) {
+container.innerHTML = `<div class="empty-state">No history records found in the last 30 days.</div>`;
+return;
+}
+
+container.innerHTML = "";
+
+validHistory.slice().reverse().forEach((item) => {
+const timestamp = item.deletedAtTimestamp || item.timestamp || now;
+const elapsedMs = now - timestamp;
+const remainingDays = Math.max(0, Math.ceil((thirtyDaysMs - elapsedMs) / (24 * 60 * 60 * 1000)));
+
+const card = document.createElement("div");
+card.className = "history-card";
+
+const entry = item.entry || item;
+const type = entry.type || 'Income';
+const isEdit = item.action === 'Edit Entry';
+const actionLabel = isEdit ? 'Edited' : 'Deleted';
+const actionBadgeStyle = isEdit ? 'background: #e1effe; color: #1e429f;' : 'background: #fde8e8; color: #c53929;';
+
+// 摘要栏展示的简短标题
+const summaryTitle = isEdit 
+  ? `Transaction Modification (${entry.title || entry.desc || 'Item'})` 
+  : `${entry.title || entry.desc || 'Untitled'} (${type})`;
+
+let detailsHTML = '';
+
+if (isEdit && item.oldEntry) {
+const oldE = item.oldEntry;
+const newE = entry;
+const oldAmountPrefix = oldE.type === 'Income' ? '+RM ' : '-RM ';
+const newAmountPrefix = newE.type === 'Income' ? '+RM ' : '-RM ';
+
+detailsHTML = `
+<div class="history-comparison">
+<div class="compare-box old">
+<div class="compare-title">📌 Before (原本账目)</div>
+<div><strong>Desc:</strong> ${oldE.title || oldE.desc || 'N/A'}</div>
+<div><strong>Type:</strong> ${oldE.type || 'N/A'}</div>
+<div><strong>Category:</strong> ${oldE.category || 'N/A'}</div>
+<div><strong>Amount:</strong> ${oldAmountPrefix}${parseFloat(oldE.amount || 0).toFixed(2)}</div>
+<div><strong>Date:</strong> ${oldE.date || 'N/A'}</div>
+</div>
+<div class="compare-box new">
+<div class="compare-title">✨ After (更改后)</div>
+<div><strong>Desc:</strong> ${newE.title || newE.desc || 'N/A'}</div>
+<div><strong>Type:</strong> ${newE.type || 'N/A'}</div>
+<div><strong>Category:</strong> ${newE.category || 'N/A'}</div>
+<div><strong>Amount:</strong> ${newAmountPrefix}${parseFloat(newE.amount || 0).toFixed(2)}</div>
+<div><strong>Date:</strong> ${newE.date || 'N/A'}</div>
+</div>
+</div>
+<div class="history-reason">
+<strong>Reason for editing:</strong> ${item.reason || 'No reason provided'}
+</div>
+<div class="history-meta">Logged Date: ${item.deletedAtDate || 'N/A'}</div>
+`;
+} else {
+const amountPrefix = type === 'Income' ? '+RM ' : '-RM ';
+detailsHTML = `
+<div class="history-meta">
+Amount: <strong>${amountPrefix}${parseFloat(entry.amount || 0).toFixed(2)}</strong> | Category: ${entry.category || 'General'} | Date: ${entry.date || 'N/A'}
+</div>
+<div class="history-reason">
+<strong>Reason for deletion:</strong> ${item.reason || 'No reason provided'}
+</div>
+<div class="history-action-footer">
+<span class="history-meta" style="margin-bottom:0;">Logged Date: ${item.deletedAtDate || 'N/A'}</span>
+<button class="btn-restore" onclick="restoreEntry(${item.id})">Restore Entry</button>
+</div>
+`;
+}
+
+card.innerHTML = `
+<div class="history-summary-header" onclick="toggleHistoryCard(this)">
+<div class="history-summary-left">
+<span class="history-badge" style="${actionBadgeStyle}">${actionLabel}</span>
+<span class="summary-title-text">${summaryTitle}</span>
+</div>
+<div class="history-summary-right">
+<span class="expire-text">Expires in ${remainingDays} days</span>
+<span class="expand-arrow">▼</span>
+</div>
+</div>
+<div class="history-details-body">
+${detailsHTML}
+</div>
+`;
+
+container.appendChild(card);
+});
+}
+
+// 展开/收起切换函数
+function toggleHistoryCard(headerEl) {
+const card = headerEl.parentElement;
+card.classList.toggle("expanded");
+}
+
+function restoreEntry(id) {
+let historyList = JSON.parse(localStorage.getItem("wispendHistory") || "[]");
+let entriesList = JSON.parse(localStorage.getItem("wispendEntries") || "[]");
+
+const targetIndex = historyList.findIndex(item => item.id === id);
+if (targetIndex === -1) return;
+
+const itemToRestore = historyList[targetIndex];
+if (itemToRestore.entry) {
+entriesList.push(itemToRestore.entry);
+localStorage.setItem("wispendEntries", JSON.stringify(entriesList));
+}
+
+historyList.splice(targetIndex, 1);
+localStorage.setItem("wispendHistory", JSON.stringify(historyList));
+
+alert("Transaction restored successfully!");
+renderHistory();
+}
+</script>
+
+</body>
+</html>

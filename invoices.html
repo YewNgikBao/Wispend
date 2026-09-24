@@ -1,0 +1,679 @@
+<!DOCTYPE html>
+<html lang="zh-CN">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>Invoices — WISPEND</title>
+
+<!-- 关联清单 -->
+<link rel="manifest" href="manifest.json">
+
+<!-- 针对苹果 iOS 设备的专用图标支持 -->
+<link rel="apple-touch-icon" sizes="180x180" href="https://lh3.google.com/u/0/d/1-WvkMpo2mSk6F3rouTRuoMFT7JAh5e9M">
+
+<!-- 手机端全屏及主题色配置 -->
+<meta name="apple-mobile-web-app-capable" content="yes">
+<meta name="apple-mobile-web-app-status-bar-style" content="black-translucent">
+<meta name="theme-color" content="#3b574a">
+
+<script src="https://cdn.tailwindcss.com"></script>
+<script>
+tailwind.config = {
+  theme: {
+    extend: {
+      colors: {
+        brand: { 50: '#f4f7f4', 100: '#e3ebe3', 500: '#4a6b5d', 600: '#3b574a', 700: '#2c4338' },
+        bgLight: '#f7f6f2', cardBg: '#ffffff'
+      }
+    }
+  }
+}
+</script>
+<style>
+body { background-color: #f7f6f2; font-family: -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, Helvetica, Arial, sans-serif; }
+</style>
+</head>
+
+<body class="flex h-screen overflow-hidden text-gray-800">
+
+<!-- 侧边栏 Sidebar -->
+<aside class="w-64 bg-[#f2f0e9] border-r border-gray-200 flex flex-col justify-between p-6 shrink-0 h-screen sticky top-0">
+  <div>
+    <!-- Profile 用户信息 -->
+    <a href="profile.html" class="flex items-center space-x-3 mb-6 p-2 rounded-xl bg-[#e3ebe3]/60 hover:bg-[#e3ebe3] transition border border-gray-200/60" title="View Profile">
+      <div id="userAvatar" class="w-9 h-9 rounded-full bg-[#3b574a] text-white flex items-center justify-center font-bold text-base shrink-0 overflow-hidden">U</div>
+      <div class="overflow-hidden">
+        <h2 id="userNameDisplay" class="font-bold text-gray-900 text-sm truncate">User Name</h2>
+        <p class="text-xs text-gray-500">View Profile</p>
+      </div>
+    </a>
+
+    <!-- 导航菜单 -->
+    <nav class="space-y-1">
+      <p class="text-xs font-semibold text-gray-400 uppercase tracking-wider mb-2">WORKSPACE</p>
+      <a href="dashboard.html" class="flex items-center px-3 py-2 text-sm font-medium text-gray-600 rounded-lg hover:bg-gray-200/60 transition">Dashboard</a>
+      <a href="transactions.html" class="flex items-center px-3 py-2 text-sm font-medium text-gray-600 rounded-lg hover:bg-gray-200/60 transition">Transactions</a>
+      <a href="invoices.html" class="flex items-center px-3 py-2 text-sm font-semibold text-[#2c4338] bg-[#e3ebe3] rounded-lg">Invoices</a>
+      <a href="reports.html" class="flex items-center px-3 py-2 text-sm font-medium text-gray-600 rounded-lg hover:bg-gray-200/60 transition">Reports</a>
+      <a href="history.html" class="flex items-center px-3 py-2 text-sm font-medium text-gray-600 rounded-lg hover:bg-gray-200/60 transition">History</a>
+    </nav>
+  </div>
+
+  <!-- 左下角 Logo -->
+  <div class="pt-4 border-t border-gray-200 flex items-center space-x-3">
+    <img src="https://lh3.google.com/u/0/d/1-WvkMpo2mSk6F3rouTRuoMFT7JAh5e9M" alt="Logo" class="w-9 h-9 rounded-xl object-cover shrink-0 shadow-sm">
+    <div>
+      <h1 class="font-bold text-gray-900 text-sm leading-tight">WISPEND</h1>
+      <p class="text-xs text-gray-500">Financial Ledger</p>
+    </div>
+  </div>
+</aside>
+
+<!-- 主内容区 Main Content -->
+<main class="flex-1 overflow-y-auto p-8">
+  <div class="flex justify-between items-center mb-6">
+    <div>
+      <div class="flex items-center gap-3">
+        <h2 class="text-3xl font-serif text-gray-900">Invoices</h2>
+        <select id="yearFilter" onchange="renderApp()" class="bg-white border border-gray-300 text-gray-700 font-semibold py-1 px-3 rounded-lg text-sm shadow-sm focus:outline-none focus:ring-2 focus:ring-[#3b574a]">
+          <option value="ALL">All Years</option>
+        </select>
+      </div>
+      <p id="subHeaderStats" class="text-sm text-gray-500 mt-1">0 total • RM 0.00 outstanding</p>
+    </div>
+
+    <button onclick="openNewInvoiceModal()" class="bg-[#3b574a] hover:bg-[#2c4338] text-white px-4 py-2 rounded-lg font-medium text-sm transition shadow-sm flex items-center gap-2">
+      <span>+</span> New invoice
+    </button>
+  </div>
+
+  <!-- 统计卡片区 -->
+  <div class="grid grid-cols-3 gap-5 mb-6">
+    <div class="bg-white p-5 rounded-2xl border border-gray-100 shadow-sm">
+      <p class="text-xs font-medium text-gray-500 mb-1">Outstanding</p>
+      <h3 id="cardOutstandingAmount" class="text-2xl font-serif text-gray-900">RM 0.00</h3>
+      <p class="text-xs text-gray-400 mt-1">Pending + overdue</p>
+    </div>
+    <div class="bg-white p-5 rounded-2xl border border-gray-100 shadow-sm">
+      <p class="text-xs font-medium text-gray-500 mb-1">Overdue</p>
+      <h3 id="cardOverdueCount" class="text-2xl font-serif text-amber-700">0</h3>
+      <p class="text-xs text-gray-400 mt-1">Needs attention</p>
+    </div>
+    <div class="bg-white p-5 rounded-2xl border border-gray-100 shadow-sm">
+      <p class="text-xs font-medium text-gray-500 mb-1">Paid</p>
+      <h3 id="cardPaidAmount" class="text-2xl font-serif text-gray-900">RM 0.00</h3>
+      <p id="cardPaidCount" class="text-xs text-gray-400 mt-1">0 invoices</p>
+    </div>
+  </div>
+
+  <!-- 列表及筛选 tab -->
+  <div class="bg-white rounded-2xl border border-gray-100 shadow-sm p-6">
+    <div class="flex space-x-2 border-b border-gray-100 pb-4 mb-4">
+      <button onclick="setTab('all')" id="tab-all" class="px-4 py-1.5 text-xs font-medium rounded-full bg-gray-200 text-gray-800">All</button>
+      <button onclick="setTab('pending')" id="tab-pending" class="px-4 py-1.5 text-xs font-medium rounded-full text-gray-500 hover:bg-gray-100">Pending</button>
+      <button onclick="setTab('overdue')" id="tab-overdue" class="px-4 py-1.5 text-xs font-medium rounded-full text-gray-500 hover:bg-gray-100">Overdue</button>
+      <button onclick="setTab('paid')" id="tab-paid" class="px-4 py-1.5 text-xs font-medium rounded-full text-gray-500 hover:bg-gray-100">Paid</button>
+    </div>
+
+    <div id="invoiceList" class="divide-y divide-gray-100"></div>
+  </div>
+</main>
+
+<!-- 新建/编辑 Invoice Modal -->
+<div id="newInvoiceModal" class="fixed inset-0 bg-black/40 hidden items-center justify-center z-50">
+  <div class="bg-white rounded-2xl p-6 w-full max-w-md shadow-xl">
+    <h3 id="invoiceModalTitle" class="text-lg font-bold text-gray-900 mb-4">Create New Invoice</h3>
+    <form id="newInvoiceForm" onsubmit="handleCreateOrUpdateInvoice(event)" class="space-y-4">
+      <input type="hidden" id="editInvoiceId" value="">
+      <div>
+        <label class="block text-xs font-medium text-gray-600 mb-1">Invoice Number</label>
+        <input type="text" id="invNumber" placeholder="e.g. #1045" required class="w-full border border-gray-300 rounded-lg p-2 text-sm focus:outline-none focus:ring-2 focus:ring-[#3b574a]">
+      </div>
+      <div>
+        <label class="block text-xs font-medium text-gray-600 mb-1">Company / Client</label>
+        <input type="text" id="invCompany" placeholder="e.g. Acme Corp" required class="w-full border border-gray-300 rounded-lg p-2 text-sm focus:outline-none focus:ring-2 focus:ring-[#3b574a]">
+      </div>
+      <div>
+        <label class="block text-xs font-medium text-gray-600 mb-1">Amount (RM)</label>
+        <input type="number" step="0.01" id="invAmount" placeholder="0.00" required class="w-full border border-gray-300 rounded-lg p-2 text-sm focus:outline-none focus:ring-2 focus:ring-[#3b574a]">
+      </div>
+      <div>
+        <label class="block text-xs font-medium text-gray-600 mb-1">Due Date</label>
+        <input type="date" id="invDueDate" required class="w-full border border-gray-300 rounded-lg p-2 text-sm focus:outline-none focus:ring-2 focus:ring-[#3b574a]">
+      </div>
+      <div class="flex justify-end gap-2 pt-2">
+        <button type="button" onclick="closeNewInvoiceModal()" class="px-4 py-2 text-sm font-medium text-gray-600 hover:bg-gray-100 rounded-lg">Cancel</button>
+        <button type="submit" id="invoiceSubmitBtn" class="px-4 py-2 text-sm font-medium bg-[#3b574a] text-white rounded-lg hover:bg-[#2c4338]">Save Invoice</button>
+      </div>
+    </form>
+  </div>
+</div>
+
+<!-- 还款记录与详情 Modal -->
+<div id="paymentModal" class="fixed inset-0 bg-black/40 hidden items-center justify-center z-50">
+  <div class="bg-white rounded-2xl p-6 w-full max-w-lg shadow-xl">
+    <div class="flex justify-between items-start border-b border-gray-100 pb-3 mb-4">
+      <div>
+        <h3 id="modalInvTitle" class="text-lg font-bold text-gray-900">Invoice Details</h3>
+        <p id="modalInvSub" class="text-xs text-gray-500"></p>
+      </div>
+      <button onclick="closePaymentModal()" class="text-gray-400 hover:text-gray-600 text-lg">✕</button>
+    </div>
+
+    <div class="grid grid-cols-3 gap-3 bg-gray-50 p-3 rounded-xl mb-4 text-center">
+      <div>
+        <p class="text-[10px] uppercase font-bold text-gray-400">Total</p>
+        <p id="modalTotalAmount" class="text-sm font-semibold text-gray-800">RM 0.00</p>
+      </div>
+      <div>
+        <p class="text-[10px] uppercase font-bold text-gray-400">Paid So Far</p>
+        <p id="modalPaidAmount" class="text-sm font-semibold text-emerald-600">RM 0.00</p>
+      </div>
+      <div>
+        <p class="text-[10px] uppercase font-bold text-gray-400">Remaining Balance</p>
+        <p id="modalBalanceAmount" class="text-sm font-semibold text-amber-700">RM 0.00</p>
+      </div>
+    </div>
+
+    <!-- 还款输入框 -->
+    <div id="addPaymentBox" class="border border-dashed border-gray-300 p-3 rounded-xl mb-4">
+      <p class="text-xs font-semibold text-gray-700 mb-2">Record New Payment</p>
+      <div class="grid grid-cols-2 gap-2 mb-2">
+        <input type="date" id="payDate" class="border border-gray-300 rounded-lg p-1.5 text-xs focus:outline-none focus:ring-1 focus:ring-[#3b574a]">
+        <input type="number" step="0.01" id="payAmount" placeholder="Payment Amount (RM)" class="border border-gray-300 rounded-lg p-1.5 text-xs focus:outline-none focus:ring-1 focus:ring-[#3b574a]">
+      </div>
+      <button onclick="handleAddPayment()" class="w-full bg-[#3b574a] hover:bg-[#2c4338] text-white text-xs font-medium py-1.5 rounded-lg transition">
+        + Add Payment
+      </button>
+    </div>
+
+    <!-- 历史还款记录 -->
+    <div class="mb-5">
+      <p class="text-xs font-semibold text-gray-700 mb-2">Payment History</p>
+      <div id="paymentHistoryList" class="max-h-36 overflow-y-auto space-y-1.5 pr-1"></div>
+    </div>
+
+    <div class="pt-3 border-t border-gray-100 flex justify-between items-center">
+      <button onclick="openEditInvoiceModalFromDetail()" class="bg-gray-100 hover:bg-gray-200 text-gray-700 px-3 py-1.5 rounded-lg text-xs font-semibold transition">
+        ✏️ Edit Invoice
+      </button>
+      <button onclick="handleDeleteInvoice()" class="bg-red-50 hover:bg-red-100 text-red-600 border border-red-200 px-3 py-1.5 rounded-lg text-xs font-semibold transition">
+        🗑 Delete Invoice
+      </button>
+    </div>
+  </div>
+</div>
+
+<script>
+function loadUserData() {
+  const currentUser = JSON.parse(localStorage.getItem("wispendCurrentUser"));
+  if (currentUser && currentUser.name) {
+    document.getElementById("userNameDisplay").textContent = currentUser.name;
+    const avatarEl = document.getElementById("userAvatar");
+    if (currentUser.avatar) {
+      avatarEl.innerHTML = `<img src="${currentUser.avatar}" alt="Avatar" class="w-full h-full object-cover rounded-full">`;
+    } else {
+      avatarEl.innerHTML = currentUser.name.charAt(0).toUpperCase();
+    }
+  }
+}
+
+function loadInvoices() {
+  const data1 = localStorage.getItem('wispend_invoices');
+  const data2 = localStorage.getItem('wispendInvoices');
+  if (data1) return JSON.parse(data1);
+  if (data2) return JSON.parse(data2);
+  return [];
+}
+
+let invoices = loadInvoices();
+let currentTab = 'all';
+let activeInvoiceId = null;
+
+function saveToStorage() {
+  localStorage.setItem('wispend_invoices', JSON.stringify(invoices));
+  localStorage.setItem('wispendInvoices', JSON.stringify(invoices));
+}
+
+function getInvoiceDetails(inv) {
+  const paidSoFar = (inv.payments || []).reduce((sum, p) => sum + Number(p.amount), 0);
+  const balance = Math.max(0, Number(inv.amount) - paidSoFar);
+  let status = 'pending';
+  if (balance <= 0) {
+    status = 'paid';
+  } else {
+    const today = new Date().toISOString().split('T')[0];
+    if (inv.dueDate < today) {
+      status = 'overdue';
+    }
+  }
+  return { paidSoFar, balance, status };
+}
+
+function updateYearSelectOptions() {
+  const yearSelect = document.getElementById('yearFilter');
+  const currentValue = yearSelect.value || 'ALL';
+  const years = new Set([new Date().getFullYear().toString()]);
+
+  invoices.forEach(inv => {
+    if (inv.dueDate) years.add(inv.dueDate.split('-')[0]);
+  });
+
+  const sortedYears = Array.from(years).sort((a, b) => b - a);
+  yearSelect.innerHTML = `<option value="ALL">All Years</option>`;
+  sortedYears.forEach(y => {
+    const opt = document.createElement('option');
+    opt.value = y;
+    opt.textContent = y;
+    yearSelect.appendChild(opt);
+  });
+  yearSelect.value = currentValue;
+}
+
+function renderApp() {
+  loadUserData();
+  invoices = loadInvoices();
+  updateYearSelectOptions();
+  const selectedYear = document.getElementById('yearFilter').value;
+
+  const filteredByYear = invoices.filter(inv => {
+    if (selectedYear === 'ALL') return true;
+    return inv.dueDate && inv.dueDate.startsWith(selectedYear);
+  });
+
+  let totalOutstanding = 0;
+  let overdueCount = 0;
+  let paidTotal = 0;
+  let paidCount = 0;
+
+  filteredByYear.forEach(inv => {
+    const { paidSoFar, balance, status } = getInvoiceDetails(inv);
+    if (status === 'paid') {
+      paidTotal += Number(inv.amount);
+      paidCount++;
+    } else {
+      totalOutstanding += balance;
+      if (status === 'overdue') overdueCount++;
+    }
+  });
+
+  document.getElementById('subHeaderStats').innerText = `${filteredByYear.length} total • RM ${totalOutstanding.toLocaleString('en-US', {minimumFractionDigits: 2})} outstanding`;
+  document.getElementById('cardOutstandingAmount').innerText = `RM ${totalOutstanding.toLocaleString('en-US', {minimumFractionDigits: 2})}`;
+  document.getElementById('cardOverdueCount').innerText = overdueCount;
+  document.getElementById('cardPaidAmount').innerText = `RM ${paidTotal.toLocaleString('en-US', {minimumFractionDigits: 2})}`;
+  document.getElementById('cardPaidCount').innerText = `${paidCount} invoices`;
+
+  const listEl = document.getElementById('invoiceList');
+  listEl.innerHTML = '';
+
+  const filteredList = filteredByYear.filter(inv => {
+    const { status } = getInvoiceDetails(inv);
+    if (currentTab === 'all') return true;
+    return status === currentTab;
+  });
+
+  if (filteredList.length === 0) {
+    listEl.innerHTML = `<div class="py-12 text-center text-gray-400 text-sm">No invoices found. Click "+ New invoice" to add one.</div>`;
+    return;
+  }
+
+  filteredList.forEach(inv => {
+    const { paidSoFar, balance, status } = getInvoiceDetails(inv);
+    const d = new Date(inv.dueDate);
+    const dateStr = isNaN(d.getTime()) ? inv.dueDate : d.toLocaleDateString('en-US', { month: 'short', day: 'numeric', year: 'numeric' });
+
+    let badgeClass = 'bg-amber-100 text-amber-800';
+    let statusText = 'Pending';
+    if (status === 'paid') {
+      badgeClass = 'bg-emerald-100 text-emerald-800';
+      statusText = 'Paid';
+    } else if (status === 'overdue') {
+      badgeClass = 'bg-red-100 text-red-800';
+      statusText = 'Overdue';
+    }
+
+    const item = document.createElement('div');
+    item.className = 'py-4 flex justify-between items-center hover:bg-gray-50/80 px-2 rounded-lg cursor-pointer transition';
+    item.onclick = () => openPaymentModal(inv.id);
+
+    item.innerHTML = `
+      <div>
+        <h4 class="font-semibold text-gray-900 text-sm">Invoice ${inv.number} • ${inv.company}</h4>
+        <p class="text-xs text-gray-400 mt-0.5">Due ${dateStr} ${paidSoFar > 0 && status !== 'paid' ? `• Paid: RM ${paidSoFar.toFixed(2)} (Bal: RM${balance.toFixed(2)})` : ''}</p>
+      </div>
+      <div class="flex items-center gap-4">
+        <span class="font-semibold text-sm text-gray-900">RM ${Number(inv.amount).toLocaleString('en-US', {minimumFractionDigits: 2})}</span>
+        <span class="px-2.5 py-1 text-xs font-medium rounded-full ${badgeClass}">${statusText}</span>
+      </div>
+    `;
+    listEl.appendChild(item);
+  });
+}
+
+function setTab(tab) {
+  currentTab = tab;
+  ['all', 'pending', 'overdue', 'paid'].forEach(t => {
+    const btn = document.getElementById(`tab-${t}`);
+    btn.className = t === tab 
+      ? 'px-4 py-1.5 text-xs font-medium rounded-full bg-gray-200 text-gray-800' 
+      : 'px-4 py-1.5 text-xs font-medium rounded-full text-gray-500 hover:bg-gray-100';
+  });
+  renderApp();
+}
+
+function openNewInvoiceModal() {
+  document.getElementById('editInvoiceId').value = '';
+  document.getElementById('invoiceModalTitle').innerText = 'Create New Invoice';
+  document.getElementById('invoiceSubmitBtn').innerText = 'Save Invoice';
+  document.getElementById('newInvoiceForm').reset();
+  document.getElementById('invDueDate').value = new Date().toISOString().split('T')[0];
+  document.getElementById('newInvoiceModal').classList.remove('hidden');
+  document.getElementById('newInvoiceModal').classList.add('flex');
+}
+
+function closeNewInvoiceModal() {
+  document.getElementById('newInvoiceModal').classList.add('hidden');
+  document.getElementById('newInvoiceModal').classList.remove('flex');
+  document.getElementById('newInvoiceForm').reset();
+}
+
+function openEditInvoiceModalFromDetail() {
+  const inv = invoices.find(i => String(i.id) === String(activeInvoiceId));
+  if (!inv) return;
+
+  closePaymentModal();
+  document.getElementById('editInvoiceId').value = inv.id;
+  document.getElementById('invoiceModalTitle').innerText = 'Edit Invoice';
+  document.getElementById('invoiceSubmitBtn').innerText = 'Update Invoice';
+
+  document.getElementById('invNumber').value = inv.number || '';
+  document.getElementById('invCompany').value = inv.company || '';
+  document.getElementById('invAmount').value = inv.amount || '';
+  document.getElementById('invDueDate').value = inv.dueDate || '';
+
+  document.getElementById('newInvoiceModal').classList.remove('hidden');
+  document.getElementById('newInvoiceModal').classList.add('flex');
+}
+
+function handleCreateOrUpdateInvoice(e) {
+  e.preventDefault();
+  const editId = document.getElementById('editInvoiceId').value;
+  const invNum = document.getElementById('invNumber').value.trim();
+  const comp = document.getElementById('invCompany').value.trim();
+  const amt = parseFloat(document.getElementById('invAmount').value);
+  const due = document.getElementById('invDueDate').value;
+  const todayStr = new Date().toISOString().split('T')[0];
+
+  if (!editId) {
+    // 创建新发票
+    const newId = Date.now();
+    const newInv = {
+      id: newId,
+      number: invNum,
+      company: comp,
+      amount: amt,
+      dueDate: due,
+      payments: []
+    };
+
+    invoices.unshift(newInv);
+    saveToStorage();
+
+    const rawTx = localStorage.getItem('wispendEntries') || localStorage.getItem('wispend_transactions') || '[]';
+    const transactions = JSON.parse(rawTx);
+    transactions.unshift({
+      id: newId,
+      type: 'Income',
+      category: 'Invoice',
+      invNo: invNum,
+      desc: `Invoice ${invNum} - ${comp}`,
+      amount: amt.toString(),
+      date: todayStr,
+      dueDate: due,
+      status: 'Pending',
+      paidDate: '',
+      invoiceId: newId
+    });
+
+    localStorage.setItem('wispendEntries', JSON.stringify(transactions));
+    localStorage.setItem('wispend_transactions', JSON.stringify(transactions));
+    alert("New invoice created successfully!");
+  } else {
+    // 编辑更新发票
+    const reason = prompt("Please enter the reason for editing this invoice:");
+    if (reason === null) return;
+
+    const existingIndex = invoices.findIndex(i => String(i.id) === String(editId));
+    if (existingIndex === -1) return;
+
+    const oldInv = invoices[existingIndex];
+    const updatedInv = {
+      ...oldInv,
+      number: invNum,
+      company: comp,
+      amount: amt,
+      dueDate: due
+    };
+
+    invoices[existingIndex] = updatedInv;
+    saveToStorage();
+
+    // 📌 同步写入 history.html 记录（包含 oldEntry 供前后对比显示）
+    let historyList = JSON.parse(localStorage.getItem("wispendHistory") || "[]");
+    historyList.push({
+      id: Date.now(),
+      action: 'Edit Invoice',
+      oldEntry: {
+        title: `Invoice ${oldInv.number} - ${oldInv.company}`,
+        desc: `Invoice ${oldInv.number} - ${oldInv.company}`,
+        amount: oldInv.amount,
+        type: 'Income',
+        category: 'Invoice',
+        date: oldInv.dueDate
+      },
+      entry: {
+        title: `Invoice ${invNum} - ${comp}`,
+        desc: `Invoice ${invNum} - ${comp}`,
+        amount: amt,
+        type: 'Income',
+        category: 'Invoice',
+        date: due
+      },
+      reason: reason.trim() || "No reason provided",
+      deletedAtTimestamp: new Date().getTime(),
+      deletedAtDate: new Date().toISOString().split('T')[0]
+    });
+    localStorage.setItem("wispendHistory", JSON.stringify(historyList));
+
+    // 同步更新底层交易记录
+    ['wispendEntries', 'wispend_transactions'].forEach(key => {
+      let rawTx = localStorage.getItem(key);
+      if (rawTx) {
+        let transactions = JSON.parse(rawTx);
+        transactions = transactions.map(item => {
+          if ((item.invoiceId && String(item.invoiceId) === String(editId)) || (item.id && String(item.id) === String(editId))) {
+            return {
+              ...item,
+              invNo: invNum,
+              desc: `Invoice ${invNum} - ${comp}`,
+              amount: amt.toString(),
+              dueDate: due
+            };
+          }
+          return item;
+        });
+        localStorage.setItem(key, JSON.stringify(transactions));
+      }
+    });
+
+    alert("Invoice updated successfully!");
+  }
+
+  closeNewInvoiceModal();
+  renderApp();
+}
+
+function openPaymentModal(invId) {
+  activeInvoiceId = invId;
+  const inv = invoices.find(i => String(i.id) === String(invId));
+  if (!inv) return;
+
+  document.getElementById('modalInvTitle').innerText = `Invoice ${inv.number} - ${inv.company}`;
+  document.getElementById('modalInvSub').innerText = `Due Date: ${inv.dueDate}`;
+  document.getElementById('payDate').value = new Date().toISOString().split('T')[0];
+
+  updatePaymentModalUI(inv);
+  document.getElementById('paymentModal').classList.remove('hidden');
+  document.getElementById('paymentModal').classList.add('flex');
+}
+
+function closePaymentModal() {
+  document.getElementById('paymentModal').classList.add('hidden');
+  document.getElementById('paymentModal').classList.remove('flex');
+  activeInvoiceId = null;
+  renderApp();
+}
+
+function updatePaymentModalUI(inv) {
+  const { paidSoFar, balance } = getInvoiceDetails(inv);
+
+  document.getElementById('modalTotalAmount').innerText = `RM ${Number(inv.amount).toFixed(2)}`;
+  document.getElementById('modalPaidAmount').innerText = `RM ${paidSoFar.toFixed(2)}`;
+  document.getElementById('modalBalanceAmount').innerText = `RM ${balance.toFixed(2)}`;
+
+  document.getElementById('addPaymentBox').style.display = balance <= 0 ? 'none' : 'block';
+
+  const historyList = document.getElementById('paymentHistoryList');
+  historyList.innerHTML = '';
+
+  if (!inv.payments || inv.payments.length === 0) {
+    historyList.innerHTML = `<p class="text-xs text-gray-400 italic">No payments recorded yet.</p>`;
+  } else {
+    inv.payments.forEach(p => {
+      const row = document.createElement('div');
+      row.className = 'flex justify-between items-center text-xs bg-gray-50 p-2 rounded';
+      row.innerHTML = `
+        <span class="text-gray-600">${p.date}</span>
+        <span class="font-semibold text-emerald-600">+ RM ${Number(p.amount).toFixed(2)}</span>
+      `;
+      historyList.appendChild(row);
+    });
+  }
+}
+
+function handleAddPayment() {
+  const date = document.getElementById('payDate').value;
+  const amount = parseFloat(document.getElementById('payAmount').value);
+
+  if (!date || isNaN(amount) || amount <= 0) {
+    alert('Please enter a valid date and payment amount.');
+    return;
+  }
+
+  const inv = invoices.find(i => String(i.id) === String(activeInvoiceId));
+  if (!inv) return;
+
+  const { balance } = getInvoiceDetails(inv);
+  if (amount > balance) {
+    alert(`Payment amount cannot exceed remaining balance (RM ${balance.toFixed(2)}).`);
+    return;
+  }
+
+  if (!inv.payments) inv.payments = [];
+  inv.payments.push({ date, amount });
+  saveToStorage();
+
+  const newBalance = balance - amount;
+  const isFullyPaid = newBalance <= 0;
+
+  const rawTx = localStorage.getItem('wispendEntries') || localStorage.getItem('wispend_transactions') || '[]';
+  let transactions = JSON.parse(rawTx);
+
+  if (isFullyPaid) {
+    transactions = transactions.map(item => {
+      if (String(item.invoiceId) === String(inv.id) && item.category === 'Invoice') {
+        return {
+          ...item,
+          status: 'Paid',
+          paidDate: date
+        };
+      }
+      return item;
+    });
+  }
+
+  transactions.unshift({
+    id: Date.now(),
+    type: 'Income',
+    category: 'Sales',
+    desc: `Invoice Payment: ${inv.number} (${inv.company})`,
+    amount: amount.toString(),
+    date: date,
+    paidDate: date,
+    status: 'Paid',
+    invoiceId: inv.id
+  });
+
+  localStorage.setItem('wispendEntries', JSON.stringify(transactions));
+  localStorage.setItem('wispend_transactions', JSON.stringify(transactions));
+
+  document.getElementById('payAmount').value = '';
+  updatePaymentModalUI(inv);
+}
+
+function handleDeleteInvoice() {
+  if (!activeInvoiceId) return;
+
+  const reason = prompt("Please enter the reason for deleting this invoice:");
+  if (reason === null) return; 
+
+  const targetInvoice = invoices.find(i => String(i.id) === String(activeInvoiceId));
+  if (!targetInvoice) return;
+
+  localStorage.removeItem('wispend_invoices');
+  localStorage.removeItem('wispendInvoices');
+
+  invoices = invoices.filter(i => String(i.id) !== String(activeInvoiceId));
+  saveToStorage();
+
+  let historyList = JSON.parse(localStorage.getItem("wispendHistory") || "[]");
+  historyList.push({
+    id: Date.now(),
+    action: 'Delete Invoice',
+    entry: { title: `Invoice ${targetInvoice.number} - ${targetInvoice.company}`, amount: targetInvoice.amount, type: 'Income', category: 'Invoice' },
+    reason: reason.trim() || "No reason provided",
+    deletedAtTimestamp: new Date().getTime(),
+    deletedAtDate: new Date().toISOString().split('T')[0]
+  });
+  localStorage.setItem("wispendHistory", JSON.stringify(historyList));
+
+  ['wispendEntries', 'wispend_transactions'].forEach(key => {
+    let rawTx = localStorage.getItem(key);
+    if (rawTx) {
+      let transactions = JSON.parse(rawTx);
+      transactions = transactions.filter(item => {
+        const matchId = (item.invoiceId && String(item.invoiceId) === String(activeInvoiceId)) || (item.id && String(item.id) === String(activeInvoiceId));
+        const matchDesc = item.desc && (item.desc.includes(targetInvoice.number) || item.desc.includes(targetInvoice.company));
+        return !(matchId || matchDesc);
+      });
+      localStorage.setItem(key, JSON.stringify(transactions));
+    }
+  });
+
+  closePaymentModal();
+  renderApp();
+  alert("Invoice deleted and recorded in History.");
+}
+
+window.addEventListener('focus', renderApp);
+window.addEventListener('storage', function(e) {
+  if (e.key === 'wispendEntries' || e.key === 'wispend_invoices' || e.key === 'wispendInvoices' || e.key === 'wispendCurrentUser') {
+    renderApp();
+  }
+});
+
+renderApp();
+</script>
+
+</body>
+</html>

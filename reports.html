@@ -1,0 +1,550 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>Reports - WISPEND</title>
+
+<!-- 关联清单 -->
+<link rel="manifest" href="manifest.json">
+
+<!-- 针对苹果 iOS 设备的专用图标支持 -->
+<link rel="apple-touch-icon" sizes="180x180" href="https://lh3.google.com/u/0/d/1-WvkMpo2mSk6F3rouTRuoMFT7JAh5e9M">
+
+<!-- 手机端全屏及主题色配置 -->
+<meta name="apple-mobile-web-app-capable" content="yes">
+<meta name="apple-mobile-web-app-status-bar-style" content="black-translucent">
+<meta name="theme-color" content="#3b574a">
+
+<!-- 引入 Chart.js 图表库 -->
+<script src="https://cdn.jsdelivr.net/npm/chart.js"></script>
+
+<style>
+* { 
+margin: 0; 
+padding: 0; 
+box-sizing: border-box; 
+font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, sans-serif; 
+}
+
+body { 
+background-color: #f3f5f2; 
+color: #1f302b; 
+display: flex; 
+min-height: 100vh; 
+}
+
+/* 左侧 Sidebar：固定不动，内部上下分栏 */
+.sidebar { 
+width: 240px; 
+background: #f3f5f2; 
+padding: 25px 20px; 
+display: flex; 
+flex-direction: column; 
+justify-content: space-between; 
+border-right: 1px solid #e2e8e4; 
+flex-shrink: 0;
+height: 100vh;
+position: sticky;
+top: 0;
+}
+
+/* 顶部 Profile 区域 */
+.user-profile { 
+display: flex; 
+align-items: center; 
+gap: 12px; 
+cursor: pointer; 
+padding: 10px; 
+border-radius: 12px; 
+background: #e9efe7;
+transition: background 0.2s; 
+text-decoration: none; 
+color: inherit; 
+border: 1px solid #dcded9;
+margin-bottom: 25px;
+}
+
+.user-profile:hover { background: #dfe7dc; }
+
+.avatar { 
+width: 38px; 
+height: 38px; 
+background: #4a7c6d; 
+color: white; 
+border-radius: 50%; 
+display: flex; 
+align-items: center; 
+justify-content: center; 
+font-weight: bold; 
+font-size: 16px; 
+flex-shrink: 0;
+overflow: hidden;
+}
+
+.user-name-title { font-weight: 700; font-size: 14px; color: #1f302b; white-space: nowrap; overflow: hidden; text-overflow: ellipsis; max-width: 120px; }
+.user-name-sub { font-size: 11px; color: #697d75; }
+
+/* 导航区 */
+.nav-section-title { font-size: 11px; font-weight: 700; color: #8e9f97; letter-spacing: 1px; margin-bottom: 12px; }
+.nav-item { 
+display: block; 
+padding: 10px 14px; 
+color: #4e6158; 
+text-decoration: none; 
+border-radius: 8px; 
+font-size: 14px; 
+font-weight: 600; 
+margin-bottom: 4px; 
+transition: background 0.15s;
+}
+
+.nav-item.active { background: #dce5df; color: #1f302b; }
+.nav-item:hover:not(.active) { background: #e8eee9; }
+
+/* 左下角 Logo 区域 */
+.sidebar-footer-logo { 
+display: flex; 
+align-items: center; 
+gap: 10px; 
+padding: 10px; 
+border-top: 1px solid #e2e8e4;
+padding-top: 15px;
+}
+
+.footer-logo-img { 
+width: 32px; 
+height: 32px; 
+border-radius: 8px; 
+object-fit: cover;
+flex-shrink: 0;
+box-shadow: 0 1px 2px rgba(0,0,0,0.05);
+}
+
+.footer-logo-title { font-weight: 800; font-size: 14px; color: #1f302b; }
+.footer-logo-sub { font-size: 11px; color: #697d75; }
+
+/* 主区域 Main Content */
+.main-content { 
+flex: 1; 
+padding: 30px 40px; 
+overflow-y: auto; 
+}
+
+.top-header { 
+display: flex; 
+justify-content: space-between; 
+align-items: center; 
+margin-bottom: 25px; 
+flex-wrap: wrap;
+gap: 15px;
+}
+
+.greeting h1 { font-size: 26px; font-weight: 700; }
+.greeting p { font-size: 13px; color: #697d75; margin-top: 4px; }
+
+.header-actions { display: flex; align-items: center; gap: 15px; }
+
+.month-picker { 
+display: flex; 
+align-items: center; 
+background: white; 
+border: 1px solid #d5ded8; 
+border-radius: 8px; 
+padding: 4px; 
+}
+
+.month-btn { 
+background: none; 
+border: none; 
+padding: 6px 12px; 
+cursor: pointer; 
+font-size: 14px; 
+color: #4e6158; 
+border-radius: 4px; 
+transition: background 0.15s;
+}
+
+.month-btn:hover { background: #f0f4f1; }
+.current-month-display { font-weight: 700; font-size: 14px; padding: 0 10px; }
+
+.btn-action { 
+background: white; 
+color: #4e6158; 
+border: 1px solid #d5ded8; 
+padding: 10px 16px; 
+border-radius: 8px; 
+font-weight: 600; 
+cursor: pointer; 
+font-size: 14px; 
+transition: background 0.2s;
+display: flex;
+align-items: center;
+gap: 6px;
+}
+.btn-action:hover { background: #f0f4f1; }
+
+.btn-primary {
+background: #4a7c6d;
+color: white;
+border: none;
+padding: 10px 18px;
+border-radius: 8px;
+font-weight: 600;
+cursor: pointer;
+font-size: 14px;
+transition: background 0.2s;
+}
+.btn-primary:hover { background: #3b6458; }
+
+.panel { background: white; border-radius: 16px; padding: 22px; border: 1px solid #e1e8e3; margin-bottom: 25px; }
+.panel-title { font-size: 16px; font-weight: 700; margin-bottom: 15px; color: #1f302b; }
+
+.pnl-row { display: flex; justify-content: space-between; align-items: center; padding: 12px 0; border-bottom: 1px solid #f5f7f5; font-size: 14px; }
+.pnl-row:last-child { border-bottom: none; }
+
+.content-grid { 
+display: grid; 
+grid-template-columns: 1fr 1fr; 
+gap: 25px; 
+margin-bottom: 30px; 
+}
+
+@media (max-width: 1024px) {
+.content-grid { grid-template-columns: 1fr; }
+}
+
+.breakdown-item { margin-bottom: 16px; }
+.breakdown-info { display: flex; justify-content: space-between; font-size: 13px; font-weight: 600; color: #4e6158; margin-bottom: 6px; }
+.bar-bg { width: 100%; background-color: #f0f4f1; height: 8px; border-radius: 9999px; overflow: hidden; }
+.bar-fill { background-color: #4a7c6d; height: 100%; border-radius: 9999px; }
+
+.chart-container { position: relative; height: 230px; width: 100%; }
+
+@media print {
+.sidebar, .header-actions { display: none !important; }
+body { background-color: white !important; }
+.main-content { padding: 0 !important; }
+.panel { border: none; box-shadow: none; padding: 10px 0; }
+}
+</style>
+</head>
+
+<body>
+
+<!-- 左侧固定 Sidebar -->
+<aside class="sidebar">
+<div>
+<!-- 最上方：Profile 用户信息 (可点击进入个人中心) -->
+<a href="profile.html" class="user-profile" title="View Profile">
+<div class="avatar" id="userAvatar">U</div>
+<div style="overflow: hidden;">
+<div class="user-name-title" id="userNameDisplay">User Name</div>
+<div class="user-name-sub">View Profile</div>
+</div>
+</a>
+
+<!-- 导航菜单 -->
+<nav class="nav-section">
+<div class="nav-section-title">WORKSPACE</div>
+<a href="dashboard.html" class="nav-item">Dashboard</a>
+<a href="transactions.html" class="nav-item">Transactions</a>
+<a href="invoices.html" class="nav-item">Invoices</a>
+<a href="reports.html" class="nav-item active">Reports</a>
+<a href="history.html" class="nav-item">History</a>
+</nav>
+</div>
+
+<!-- 左下角 Logo 区域 -->
+<div class="sidebar-footer-logo">
+<img src="https://lh3.google.com/u/0/d/1-WvkMpo2mSk6F3rouTRuoMFT7JAh5e9M" alt="Logo" class="footer-logo-img">
+<div>
+<div class="footer-logo-title">WISPEND</div>
+<div class="footer-logo-sub">Financial Ledger</div>
+</div>
+</div>
+</aside>
+
+<!-- 主界面 -->
+<main class="main-content">
+<header class="top-header">
+<div class="greeting">
+<h1>Reports</h1>
+<p id="subHeaderInfo">Profit & loss, cash flow and expense breakdown</p>
+</div>
+<div class="header-actions">
+<div class="month-picker">
+<button class="month-btn" onclick="changeMonth(-1)">◀</button>
+<span class="current-month-display" id="monthDisplay">2026 - 09</span>
+<button class="month-btn" onclick="changeMonth(1)">▶</button>
+</div>
+
+<button class="btn-action" onclick="shareReport()">🔗 Share</button>
+<button class="btn-primary" onclick="exportPDF()">Export PDF</button>
+</div>
+</header>
+
+<!-- Profit & Loss 面板 -->
+<div class="panel">
+<div class="panel-title">Profit & Loss</div>
+<div>
+<div class="pnl-row">
+<span style="color: #697d75;">Total income (Paid)</span>
+<span style="font-weight: 700; color: #2e7d5a;" id="reportIncome">+RM 0.00</span>
+</div>
+<div class="pnl-row">
+<span style="color: #697d75;">Total expenses (Paid)</span>
+<span style="font-weight: 700; color: #c53929;" id="reportExpense">-RM 0.00</span>
+</div>
+<div class="pnl-row">
+<span style="font-weight: 600; color: #1f302b;">Net profit</span>
+<span style="font-size: 16px; font-weight: 800;" id="reportNetProfit">RM 0.00</span>
+</div>
+<div class="pnl-row">
+<span style="color: #697d75;">Margin</span>
+<span style="font-weight: 700; color: #1f302b;" id="reportMargin">0%</span>
+</div>
+</div>
+</div>
+
+<!-- 下方双列网格 -->
+<div class="content-grid">
+<div class="panel" style="margin-bottom: 0;">
+<div class="panel-title">Expense Breakdown</div>
+<div id="breakdownContainer"></div>
+</div>
+
+<div class="panel" style="margin-bottom: 0;">
+<div style="display: flex; justify-content: space-between; align-items: center; margin-bottom: 15px;">
+<div class="panel-title" style="margin-bottom: 0;">Cash Flow Trend</div>
+<span style="font-size: 12px; font-weight: 700; color: #8e9f97; background: #f0f4f1; padding: 4px 10px; border-radius: 6px;">6 mo</span>
+</div>
+<div class="chart-container">
+<canvas id="reportChart"></canvas>
+</div>
+</div>
+</div>
+</main>
+
+<!-- =========================
+FIREBASE & APP LOGIC
+========================= -->
+<script type="module">
+import { initializeApp } from "https://www.gstatic.com/firebasejs/10.8.0/firebase-app.js";
+import { getFirestore } from "https://www.gstatic.com/firebasejs/10.8.0/firebase-firestore.js";
+
+const firebaseConfig = {
+apiKey: "AIzaSyDKXFjTwZ92ITi-s4Sbph_bjNjuvkNQOb4",
+authDomain: "wispend-1234.firebaseapp.com",
+projectId: "wispend-1234",
+storageBucket: "wispend-1234.firebasestorage.app",
+messagingSenderId: "227503315553",
+appId: "1:227503315553:web:a913fdcab269787e926820",
+measurementId: "G-L3S3EK3Q1Z"
+};
+
+const app = initializeApp(firebaseConfig);
+const db = getFirestore(app);
+
+const currentUser = JSON.parse(localStorage.getItem("wispendCurrentUser"));
+if (!currentUser) {
+alert("Please login first!");
+window.location.href = "index.html";
+}
+</script>
+
+<script>
+let currentDate = new Date();
+let selectedYear = currentDate.getFullYear();
+let selectedMonth = currentDate.getMonth() + 1;
+let reportChartInstance = null;
+
+window.onload = function() {
+loadUserData();
+renderReports();
+};
+
+// 读取用户数据并同步头像（支持图片或首字母）
+function loadUserData() {
+const currentUser = JSON.parse(localStorage.getItem("wispendCurrentUser"));
+if (currentUser && currentUser.name) {
+document.getElementById("userNameDisplay").textContent = currentUser.name;
+
+const avatarEl = document.getElementById("userAvatar");
+if (currentUser.avatar) {
+avatarEl.innerHTML = `<img src="${currentUser.avatar}" alt="Avatar" style="width:100%; height:100%; object-fit:cover; border-radius:50%;">`;
+} else {
+avatarEl.textContent = currentUser.name.charAt(0).toUpperCase();
+}
+} else {
+window.location.href = "index.html";
+}
+}
+
+function changeMonth(delta) {
+selectedMonth += delta;
+if (selectedMonth > 12) { selectedMonth = 1; selectedYear++; }
+if (selectedMonth < 1) { selectedMonth = 12; selectedYear--; }
+renderReports();
+}
+
+function parseLocalDate(dateStr) {
+if (!dateStr) return new Date();
+const parts = dateStr.split('-');
+return new Date(parts[0], parts[1] - 1, parts[2] || 1);
+}
+
+function renderReports() {
+const monthStr = selectedMonth < 10 ? '0' + selectedMonth : selectedMonth;
+document.getElementById("monthDisplay").textContent = `${selectedYear} - ${monthStr}`;
+
+const allEntries = JSON.parse(localStorage.getItem("wispendEntries") || "[]");
+
+const currentEntries = allEntries.filter(e => {
+let activeDate = e.date;
+if (e.category === 'Invoice' && e.status !== 'Paid' && e.dueDate) {
+activeDate = e.dueDate;
+} else if (e.status === 'Paid' && e.paidDate) {
+activeDate = e.paidDate;
+}
+const d = parseLocalDate(activeDate);
+return d.getFullYear() === selectedYear && (d.getMonth() + 1) === selectedMonth;
+});
+
+let cIncome = 0, cExpense = 0;
+let categoryExpenses = {};
+
+currentEntries.forEach(e => {
+const isPaidOrNormal = e.category !== 'Invoice' || e.status === 'Paid';
+if (isPaidOrNormal) {
+const amt = parseFloat(e.amount) || 0;
+if (e.type === 'Income') {
+cIncome += amt;
+} else {
+cExpense += amt;
+categoryExpenses[e.category] = (categoryExpenses[e.category] || 0) + amt;
+}
+}
+});
+
+document.getElementById("reportIncome").textContent = `+RM ${cIncome.toFixed(2)}`;
+document.getElementById("reportExpense").textContent = `-RM ${cExpense.toFixed(2)}`;
+const profit = cIncome - cExpense;
+const netProfitEl = document.getElementById("reportNetProfit");
+netProfitEl.textContent = `RM ${profit.toFixed(2)}`;
+netProfitEl.style.color = profit >= 0 ? "#2e7d5a" : "#c53929";
+
+const margin = cIncome > 0 ? ((profit / cIncome) * 100).toFixed(1) : 0;
+document.getElementById("reportMargin").textContent = `${margin}%`;
+
+const breakdownContainer = document.getElementById("breakdownContainer");
+breakdownContainer.innerHTML = "";
+
+if (Object.keys(categoryExpenses).length === 0) {
+breakdownContainer.innerHTML = '<p style="font-size: 13px; color: #8e9f97; text-align: center; padding: 20px;">No expense records for this month.</p>';
+} else {
+const sortedCats = Object.entries(categoryExpenses).sort((a, b) => b[1] - a[1]);
+sortedCats.forEach(([cat, amt]) => {
+const percent = cExpense > 0 ? ((amt / cExpense) * 100).toFixed(0) : 0;
+const itemDiv = document.createElement("div");
+itemDiv.className = "breakdown-item";
+itemDiv.innerHTML = `
+<div class="breakdown-info">
+<span>${cat}</span>
+<span style="color: #697d75; font-weight: normal;">RM ${amt.toFixed(2)} · ${percent}%</span>
+</div>
+<div class="bar-bg"><div class="bar-fill" style="width: ${percent}%;"></div></div>
+`;
+breakdownContainer.appendChild(itemDiv);
+});
+}
+
+renderReportChart(allEntries);
+}
+
+function renderReportChart(allEntries) {
+const labels = [];
+const incomeData = [];
+const expenseData = [];
+
+for (let i = 5; i >= 0; i--) {
+let d = new Date(selectedYear, selectedMonth - 1 - i, 1);
+let y = d.getFullYear();
+let m = d.getMonth() + 1;
+labels.push(d.toLocaleString('en-US', { month: 'short' }) + ' ' + y);
+
+let inc = 0, exp = 0;
+allEntries.forEach(e => {
+if (e.category === 'Invoice' && e.status !== 'Paid') return;
+let activeDate = (e.status === 'Paid' && e.paidDate) ? e.paidDate : e.date;
+let ed = parseLocalDate(activeDate);
+if (ed.getFullYear() === y && (ed.getMonth() + 1) === m) {
+if (e.type === 'Income') inc += parseFloat(e.amount);
+else exp += parseFloat(e.amount);
+}
+});
+incomeData.push(inc);
+expenseData.push(exp);
+}
+
+const ctx = document.getElementById('reportChart').getContext('2d');
+if (reportChartInstance) reportChartInstance.destroy();
+
+reportChartInstance = new Chart(ctx, {
+type: 'bar',
+data: {
+labels: labels,
+datasets: [
+{ label: 'Income', data: incomeData, backgroundColor: '#4a7c6d', borderRadius: 4 },
+{ label: 'Expense', data: expenseData, backgroundColor: '#d97706', borderRadius: 4 }
+]
+},
+options: {
+responsive: true,
+maintainAspectRatio: false,
+plugins: { legend: { position: 'top' } },
+scales: {
+x: { grid: { display: false } },
+y: { grid: { color: '#f5f7f5' } }
+}
+}
+});
+}
+
+function exportPDF() { window.print(); }
+
+function shareReport() {
+    const shareData = {
+        title: 'WISPEND Financial Report',
+        text: 'Check out the financial report from WISPEND ledger.',
+        url: window.location.href,
+    };
+
+    // 优先尝试调用浏览器原生分享
+    if (navigator.share) {
+        navigator.share(shareData).catch(err => {
+            console.log('User cancelled or error sharing:', err);
+        });
+    } else {
+        // 如果不支持原生分享（如部分电脑端浏览器），则使用备用复制链接方案
+        navigator.clipboard.writeText(window.location.href).then(() => {
+            alert('Report link copied to clipboard! You can now paste and share it.');
+        }).catch(err => {
+            // 最底层的降级方案：使用传统 prompt 让用户手动复制
+            prompt("Copy this report link to share:", window.location.href);
+        });
+    }
+}
+
+
+// 监听 storage 改变实现标签页/页面间实时同步
+window.addEventListener('storage', function(e) {
+if (e.key === 'wispendEntries' || e.key === 'wispendCurrentUser') {
+loadUserData();
+renderReports();
+}
+});
+</script>
+
+</body> 
+</html>

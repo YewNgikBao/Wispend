@@ -1,0 +1,20 @@
+{
+  "name": "Wispend Financial Ledger",
+  "short_name": "Wispend",
+  "start_url": "/dashboard.html",
+  "display": "standalone",
+  "background_color": "#f7f6f2",
+  "theme_color": "#3b574a",
+  "icons": [
+    {
+      "src": "https://lh3.google.com/u/0/d/1-WvkMpo2mSk6F3rouTRuoMFT7JAh5e9M",
+      "sizes": "192x192",
+      "type": "image/png"
+    },
+    {
+      "src": "https://lh3.google.com/u/0/d/1-WvkMpo2mSk6F3rouTRuoMFT7JAh5e9M",
+      "sizes": "512x512",
+      "type": "image/png"
+    }
+  ]
+}

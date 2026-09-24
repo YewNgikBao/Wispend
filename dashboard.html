@@ -1,0 +1,756 @@
+<!DOCTYPE html>
+<html lang="zh-CN">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>Dashboard — WISPEND</title>
+
+<!-- 关联清单 -->
+<link rel="manifest" href="manifest.json">
+
+<!-- 针对苹果 iOS 设备的专用图标支持 -->
+<link rel="apple-touch-icon" sizes="180x180" href="https://lh3.google.com/u/0/d/1-WvkMpo2mSk6F3rouTRuoMFT7JAh5e9M">
+
+<!-- 手机端全屏及主题色配置 -->
+<meta name="apple-mobile-web-app-capable" content="yes">
+<meta name="apple-mobile-web-app-status-bar-style" content="black-translucent">
+<meta name="theme-color" content="#3b574a">
+
+
+<!-- 引入 Tailwind CSS -->
+<script src="https://cdn.tailwindcss.com"></script>
+<!-- 引入 Chart.js 图表库 -->
+<script src="https://cdn.jsdelivr.net/npm/chart.js"></script>
+<script>
+tailwind.config = {
+theme: {
+extend: {
+colors: {
+brand: { 50: '#f4f7f4', 100: '#e3ebe3', 500: '#4a6b5d', 600: '#3b574a', 700: '#2c4338' },
+bgLight: '#f7f6f2', cardBg: '#ffffff'
+}
+}
+}
+}
+</script>
+<style>
+body { background-color: #f7f6f2; font-family: -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, Helvetica, Arial, sans-serif; }
+</style>
+</head>
+
+<body class="flex h-screen overflow-hidden text-gray-800">
+
+<!-- 侧边栏 Sidebar -->
+<aside class="w-64 bg-[#f2f0e9] border-r border-gray-200 flex flex-col justify-between p-6 shrink-0 h-screen sticky top-0">
+<div>
+<!-- Profile 用户信息 -->
+<a href="profile.html" class="flex items-center space-x-3 mb-6 p-2 rounded-xl bg-[#e3ebe3]/65 hover:bg-[#e3ebe3] transition border border-gray-200/60" title="View Profile">
+<div id="userAvatar" class="w-9 h-9 rounded-full bg-[#3b574a] text-white flex items-center justify-center font-bold text-base shrink-0">U</div>
+<div class="overflow-hidden">
+<h2 id="userNameDisplay" class="font-bold text-gray-900 text-sm truncate">User Name</h2>
+<p class="text-xs text-gray-500">View Profile</p>
+</div>
+</a>
+
+<!-- 导航菜单 -->
+<nav class="space-y-1">
+<p class="text-xs font-semibold text-gray-400 uppercase tracking-wider mb-2">WORKSPACE</p>
+<a href="dashboard.html" class="flex items-center px-3 py-2 text-sm font-semibold text-[#2c4338] bg-[#e3ebe3] rounded-lg">Dashboard</a>
+<a href="transactions.html" class="flex items-center px-3 py-2 text-sm font-medium text-gray-600 rounded-lg hover:bg-gray-200/60 transition">Transactions</a>
+<a href="invoices.html" class="flex items-center px-3 py-2 text-sm font-medium text-gray-600 rounded-lg hover:bg-gray-200/60 transition">Invoices</a>
+<a href="reports.html" class="flex items-center px-3 py-2 text-sm font-medium text-gray-600 rounded-lg hover:bg-gray-200/60 transition">Reports</a>
+<a href="history.html" class="flex items-center px-3 py-2 text-sm font-medium text-gray-600 rounded-lg hover:bg-gray-200/60 transition">History</a>
+</nav>
+</div>
+
+<!-- 左下角 Logo -->
+<div class="pt-4 border-t border-gray-200 flex items-center space-x-3">
+<img src="https://lh3.google.com/u/0/d/1-WvkMpo2mSk6F3rouTRuoMFT7JAh5e9M" alt="Logo" class="w-9 h-9 rounded-xl object-cover shrink-0 shadow-sm">
+<div>
+<h1 class="font-bold text-gray-900 text-sm leading-tight">WISPEND</h1>
+<p class="text-xs text-gray-500">Financial Ledger</p>
+</div>
+</div>
+</aside>
+
+<!-- 主内容区 Main Content -->
+<main class="flex-1 overflow-y-auto p-8">
+<header class="flex justify-between items-center mb-6 flex-wrap gap-4">
+<div>
+<h1 id="welcomeHeader" class="text-3xl font-serif text-gray-900">Good day, User</h1>
+<p id="subHeaderDate" class="text-sm text-gray-500 mt-1">Monthly Overview</p>
+</div>
+<div class="flex items-center gap-3">
+<div class="flex items-center bg-white border border-gray-300 rounded-lg p-1 shadow-sm">
+<button onclick="changeMonth(-1)" class="px-3 py-1 text-sm text-gray-600 hover:bg-gray-100 rounded">◀</button>
+<span id="monthDisplay" class="px-3 text-sm font-bold text-gray-800">2026 - 09</span>
+<button onclick="changeMonth(1)" class="px-3 py-1 text-sm text-gray-600 hover:bg-gray-100 rounded">▶</button>
+</div>
+<button onclick="openAddModal()" class="bg-[#3b574a] hover:bg-[#2c4338] text-white px-4 py-2 rounded-lg font-medium text-sm transition shadow-sm flex items-center gap-2">
+<span>+</span> New entry
+</button>
+</div>
+</header>
+
+<!-- 顶部统计卡片 -->
+<section class="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-4 gap-4 mb-6">
+<div class="bg-white p-5 rounded-2xl border border-gray-100 shadow-sm">
+<div class="flex justify-between items-center text-xs font-semibold text-gray-500 mb-1">
+<span>Income (Paid)</span>
+<span id="incomeGrowth" class="bg-emerald-100 text-emerald-800 px-2 py-0.5 rounded-full text-[10px]">+0.0%</span>
+</div>
+<div id="totalIncome" class="text-2xl font-serif text-gray-900 mt-1">RM 0.00</div>
+<div id="lastIncomeComp" class="text-xs text-gray-400 mt-1">vs RM 0 last month</div>
+</div>
+
+<div class="bg-white p-5 rounded-2xl border border-gray-100 shadow-sm">
+<div class="flex justify-between items-center text-xs font-semibold text-gray-500 mb-1">
+<span>Expenses (Paid)</span>
+<span id="expenseGrowth" class="bg-red-100 text-red-800 px-2 py-0.5 rounded-full text-[10px]">+0.0%</span>
+</div>
+<div id="totalExpenses" class="text-2xl font-serif text-gray-900 mt-1">RM 0.00</div>
+<div id="lastExpenseComp" class="text-xs text-gray-400 mt-1">vs RM 0 last month</div>
+</div>
+
+<div class="bg-white p-5 rounded-2xl border border-gray-100 shadow-sm">
+<div class="text-xs font-semibold text-gray-500 mb-1">Net Profit</div>
+<div id="netProfit" class="text-2xl font-serif text-gray-900 mt-1">RM 0.00</div>
+<div id="profitMargin" class="text-xs text-gray-400 mt-1">Margin 0%</div>
+</div>
+
+<div class="bg-white p-5 rounded-2xl border border-gray-100 shadow-sm">
+<div class="text-xs font-semibold text-gray-500 mb-1">Invoices Count</div>
+<div id="invoiceCount" class="text-2xl font-serif text-gray-900 mt-1">0</div>
+<div id="pendingInvInfo" class="text-xs text-gray-400 mt-1">0 Pending Invoices</div>
+</div>
+</section>
+
+<!-- 6个月现金流柱状图面板 -->
+<section class="bg-white rounded-2xl border border-gray-100 shadow-sm p-6 mb-6">
+<div class="flex justify-between items-center mb-4">
+<div>
+<h3 class="text-base font-bold text-gray-900">Cash Flow Trend (Paid Only)</h3>
+<p class="text-xs text-gray-400">Click on any bar to see Net Inflow and switch dashboard month</p>
+</div>
+</div>
+<div class="relative h-64 w-full">
+<canvas id="cashFlowChart"></canvas>
+</div>
+</section>
+
+<!-- 交易记录 + Invoice 列表 -->
+<div class="grid grid-cols-1 lg:grid-cols-2 gap-6 mb-8">
+<div class="bg-white rounded-2xl border border-gray-100 shadow-sm p-6">
+<div class="flex justify-between items-center mb-4 pb-2 border-b border-gray-100">
+<h3 class="text-base font-bold text-gray-900">Recent Transactions</h3>
+<span id="transCount" class="text-xs text-gray-400">0 entries (Click to edit)</span>
+</div>
+<div class="overflow-x-auto">
+<table class="w-full text-left text-sm">
+<thead>
+<tr class="text-[11px] font-bold text-gray-400 uppercase border-b border-gray-100">
+<th class="pb-2 w-1/4">Date</th>
+<th class="pb-2 w-3/8">Description</th>
+<th class="pb-2 w-1/4">Category</th>
+<th class="pb-2 text-right w-1/4">Amount</th>
+</tr>
+</thead>
+<tbody id="transactionTableBody" class="divide-y divide-gray-50"></tbody>
+</table>
+</div>
+</div>
+
+<div class="bg-white rounded-2xl border border-gray-100 shadow-sm p-6">
+<div class="flex justify-between items-center mb-4 pb-2 border-b border-gray-100">
+<h3 class="text-base font-bold text-gray-900">Invoices</h3>
+</div>
+<div class="overflow-x-auto">
+<table class="w-full text-left text-sm">
+<thead>
+<tr class="text-[11px] font-bold text-gray-400 uppercase border-b border-gray-100">
+<th class="pb-2 w-1/3">Inv No.</th>
+<th class="pb-2 w-1/3">Due Date</th>
+<th class="pb-2 w-1/4">Status</th>
+<th class="pb-2 text-right w-1/4">Amount</th>
+</tr>
+</thead>
+<tbody id="invoiceTableBody" class="divide-y divide-gray-50"></tbody>
+</table>
+</div>
+</div>
+</div>
+</main>
+
+<!-- 弹窗 Modal -->
+<div id="entryModal" class="fixed inset-0 bg-black/40 hidden items-center justify-center z-50 backdrop-blur-sm">
+<div class="bg-white rounded-2xl p-6 w-full max-w-md shadow-xl relative max-h-[90vh] overflow-y-auto">
+<button onclick="closeModal()" class="absolute right-4 top-4 text-gray-400 hover:text-gray-600 text-xl font-bold">×</button>
+<h3 id="modalTitle" class="text-lg font-bold text-gray-900 mb-4">Add New Entry</h3>
+<form onsubmit="saveEntry(event)" class="space-y-4">
+<input type="hidden" id="editIndex" value="-1">
+<div class="grid grid-cols-2 gap-3">
+<div>
+<label class="block text-xs font-bold text-gray-600 mb-1">Type</label>
+<select id="entryType" class="w-full p-2 border border-gray-300 rounded-lg text-sm focus:outline-none focus:ring-2 focus:ring-[#3b574a]">
+<option value="Income">Income</option>
+<option value="Expense">Expense</option>
+</select>
+</div>
+<div>
+<label class="block text-xs font-bold text-gray-600 mb-1">Category</label>
+<select id="entryCategory" onchange="toggleInvoiceFields()" class="w-full p-2 border border-gray-300 rounded-lg text-sm focus:outline-none focus:ring-2 focus:ring-[#3b574a]"></select>
+</div>
+</div>
+
+<div id="invNoGroup" style="display: none;">
+<label class="block text-xs font-bold text-gray-600 mb-1">Invoice No. <span class="text-red-500">*</span></label>
+<input type="text" id="entryInvNo" placeholder="e.g. INV-2026-001" class="w-full p-2 border border-gray-300 rounded-lg text-sm focus:outline-none focus:ring-2 focus:ring-[#3b574a]">
+</div>
+
+<div>
+<label class="block text-xs font-bold text-gray-600 mb-1">Description / Item Name</label>
+<input type="text" id="entryDesc" placeholder="e.g. Web Development / Office Rent" required class="w-full p-2 border border-gray-300 rounded-lg text-sm focus:outline-none focus:ring-2 focus:ring-[#3b574a]">
+</div>
+
+<div>
+<label class="block text-xs font-bold text-gray-600 mb-1">Amount (RM)</label>
+<input type="number" step="0.01" id="entryAmount" placeholder="0.00" required class="w-full p-2 border border-gray-300 rounded-lg text-sm focus:outline-none focus:ring-2 focus:ring-[#3b574a]">
+</div>
+
+<div class="grid grid-cols-2 gap-3">
+<div>
+<label class="block text-xs font-bold text-gray-600 mb-1">Issue Date</label>
+<input type="date" id="entryDate" required class="w-full p-2 border border-gray-300 rounded-lg text-sm focus:outline-none focus:ring-2 focus:ring-[#3b574a]">
+</div>
+<div>
+<label class="block text-xs font-bold text-gray-600 mb-1">Due Date</label>
+<input type="date" id="entryDueDate" class="w-full p-2 border border-gray-300 rounded-lg text-sm focus:outline-none focus:ring-2 focus:ring-[#3b574a]">
+</div>
+</div>
+
+<div class="grid grid-cols-2 gap-3">
+<div>
+<label class="block text-xs font-bold text-gray-600 mb-1">Status</label>
+<select id="entryStatus" onchange="togglePaidDateField()" class="w-full p-2 border border-gray-300 rounded-lg text-sm focus:outline-none focus:ring-2 focus:ring-[#3b574a]">
+<option value="Pending">Pending</option>
+<option value="Paid">Paid</option>
+</select>
+</div>
+<div id="paidDateGroup" style="display: none;">
+<label class="block text-xs font-bold text-gray-600 mb-1">Paid Date</label>
+<input type="date" id="entryPaidDate" class="w-full p-2 border border-gray-300 rounded-lg text-sm focus:outline-none focus:ring-2 focus:ring-[#3b574a]">
+</div>
+</div>
+
+<div>
+<div class="flex gap-2 mt-2">
+<input type="text" id="newCatInput" placeholder="Add custom category" class="flex-1 p-2 border border-gray-300 rounded-lg text-xs focus:outline-none focus:ring-1 focus:ring-[#3b574a]">
+<button type="button" onclick="addCategory()" class="px-3 py-1.5 bg-gray-100 hover:bg-gray-200 text-xs font-semibold rounded-lg transition">+ Add</button>
+<button type="button" onclick="deleteCategory()" class="px-3 py-1.5 bg-gray-100 hover:bg-gray-200 text-xs font-semibold rounded-lg transition">- Remove</button>
+</div>
+</div>
+
+<button type="submit" id="saveBtn" class="w-full py-2.5 bg-[#3b574a] hover:bg-[#2c4338] text-white rounded-lg font-medium text-sm transition shadow-sm mt-2">Save Entry</button>
+<button type="button" id="deleteBtn" style="display: none;" onclick="deleteEntry()" class="w-full py-2 bg-red-50 hover:bg-red-100 text-red-600 rounded-lg font-medium text-sm transition border border-red-200 mt-1">Delete Entry</button>
+</form>
+</div>
+</div>
+
+<script>
+let currentDate = new Date();
+let selectedYear = currentDate.getFullYear();
+let selectedMonth = currentDate.getMonth() + 1;
+
+let categories = ["Invoice", "Sales", "Facilities", "Logistics", "Payroll", "Others"];
+let myChartInstance = null;
+let last6MonthsData = [];
+
+window.onload = function() {
+loadUserData();
+initCategories();
+renderDashboard();
+};
+
+function loadUserData() {
+const currentUser = JSON.parse(localStorage.getItem("wispendCurrentUser"));
+if (currentUser && currentUser.name) {
+document.getElementById("userNameDisplay").textContent = currentUser.name;
+document.getElementById("welcomeHeader").textContent = "Good day, " + currentUser.name;
+
+const avatarEl = document.getElementById("userAvatar");
+if (currentUser.avatar) {
+avatarEl.innerHTML = `<img src="${currentUser.avatar}" alt="Avatar" class="w-full h-full object-cover rounded-full">`;
+} else {
+avatarEl.innerHTML = currentUser.name.charAt(0).toUpperCase();
+}
+} else {
+window.location.href = "index.html";
+}
+}
+
+function initCategories() {
+const savedCats = JSON.parse(localStorage.getItem("wispendCategories"));
+if (savedCats) categories = savedCats;
+renderCatSelect();
+}
+
+function renderCatSelect() {
+const select = document.getElementById("entryCategory");
+select.innerHTML = "";
+categories.forEach(cat => {
+const opt = document.createElement("option");
+opt.value = cat;
+opt.textContent = cat;
+select.appendChild(opt);
+});
+toggleInvoiceFields();
+}
+
+function toggleInvoiceFields() {
+const cat = document.getElementById("entryCategory").value;
+const invGroup = document.getElementById("invNoGroup");
+if (cat === "Invoice") {
+invGroup.style.display = "block";
+} else {
+invGroup.style.display = "none";
+}
+}
+
+function togglePaidDateField() {
+const status = document.getElementById("entryStatus").value;
+const paidGroup = document.getElementById("paidDateGroup");
+if (status === "Paid") {
+paidGroup.style.display = "block";
+if (!document.getElementById("entryPaidDate").value) {
+document.getElementById("entryPaidDate").value = new Date().toISOString().split('T')[0];
+}
+} else {
+paidGroup.style.display = "none";
+}
+}
+
+function addCategory() {
+const val = document.getElementById("newCatInput").value.trim();
+if (val && !categories.includes(val)) {
+categories.push(val);
+localStorage.setItem("wispendCategories", JSON.stringify(categories));
+renderCatSelect();
+document.getElementById("entryCategory").value = val;
+document.getElementById("newCatInput").value = "";
+}
+}
+
+function deleteCategory() {
+const select = document.getElementById("entryCategory");
+const val = select.value;
+if (val === "Invoice") {
+alert("Category 'Invoice' cannot be deleted!");
+return;
+}
+categories = categories.filter(c => c !== val);
+localStorage.setItem("wispendCategories", JSON.stringify(categories));
+renderCatSelect();
+}
+
+function changeMonth(delta) {
+selectedMonth += delta;
+if (selectedMonth > 12) { selectedMonth = 1; selectedYear++; }
+if (selectedMonth < 1) { selectedMonth = 12; selectedYear--; }
+renderDashboard();
+}
+
+function parseLocalDate(dateStr) {
+if (!dateStr) return new Date();
+const parts = dateStr.split('-');
+return new Date(parts[0], parts[1] - 1, parts[2] || 1);
+}
+
+function renderDashboard() {
+const monthStr = selectedMonth < 10 ? '0' + selectedMonth : selectedMonth;
+document.getElementById("monthDisplay").textContent = `${selectedYear} - ${monthStr}`;
+
+const allEntries = JSON.parse(localStorage.getItem("wispendEntries") || "[]");
+
+const currentEntries = allEntries.map((e, idx) => ({...e, globalIndex: idx})).filter(e => {
+let activeDate = e.date;
+if (e.category === 'Invoice' && e.status !== 'Paid' && e.dueDate) {
+activeDate = e.dueDate;
+} else if (e.status === 'Paid' && e.paidDate) {
+activeDate = e.paidDate;
+}
+const d = parseLocalDate(activeDate);
+return d.getFullYear() === selectedYear && (d.getMonth() + 1) === selectedMonth;
+});
+
+const prevMonth = selectedMonth === 1 ? 12 : selectedMonth - 1;
+const prevYear = selectedMonth === 1 ? selectedYear - 1 : selectedYear;
+const prevEntries = allEntries.filter(e => {
+let activeDate = e.date;
+if (e.category === 'Invoice' && e.status !== 'Paid' && e.dueDate) {
+activeDate = e.dueDate;
+} else if (e.status === 'Paid' && e.paidDate) {
+activeDate = e.paidDate;
+}
+const d = parseLocalDate(activeDate);
+return d.getFullYear() === prevYear && (d.getMonth() + 1) === prevMonth;
+});
+
+let cIncome = 0, cExpense = 0;
+currentEntries.forEach(e => {
+const isPaidOrNormal = e.category !== 'Invoice' || e.status === 'Paid';
+if (isPaidOrNormal) {
+if (e.type === 'Income') cIncome += parseFloat(e.amount);
+else cExpense += parseFloat(e.amount);
+}
+});
+
+let pIncome = 0, pExpense = 0;
+prevEntries.forEach(e => {
+const isPaidOrNormal = e.category !== 'Invoice' || e.status === 'Paid';
+if (isPaidOrNormal) {
+if (e.type === 'Income') pIncome += parseFloat(e.amount);
+else pExpense += parseFloat(e.amount);
+}
+});
+
+document.getElementById("totalIncome").textContent = `RM ${cIncome.toFixed(2)}`;
+document.getElementById("totalExpenses").textContent = `RM ${cExpense.toFixed(2)}`;
+const profit = cIncome - cExpense;
+document.getElementById("netProfit").textContent = `RM ${profit.toFixed(2)}`;
+
+const margin = cIncome > 0 ? ((profit / cIncome) * 100).toFixed(1) : 0;
+document.getElementById("profitMargin").textContent = `Margin ${margin}%`;
+
+document.getElementById("lastIncomeComp").textContent = `vs RM ${pIncome.toFixed(0)} last month`;
+document.getElementById("lastExpenseComp").textContent = `vs RM ${pExpense.toFixed(0)} last month`;
+
+const incRate = pIncome > 0 ? (((cIncome - pIncome) / pIncome) * 100).toFixed(1) : 0;
+const expRate = pExpense > 0 ? (((cExpense - pExpense) / pExpense) * 100).toFixed(1) : 0;
+document.getElementById("incomeGrowth").textContent = `${incRate >= 0 ? '+' : ''}${incRate}%`;
+document.getElementById("expenseGrowth").textContent = `${expRate >= 0 ? '+' : ''}${expRate}%`;
+
+const transBody = document.getElementById("transactionTableBody");
+const invoiceBody = document.getElementById("invoiceTableBody");
+transBody.innerHTML = "";
+invoiceBody.innerHTML = "";
+
+let invCount = 0;
+let pendingCount = 0;
+const todayStr = new Date().toISOString().split('T')[0];
+
+currentEntries.forEach(e => {
+if (e.category !== 'Invoice' || e.status === 'Paid') {
+const tr = document.createElement("tr");
+tr.className = "hover:bg-gray-50/80 cursor-pointer transition";
+tr.onclick = () => openEditModal(e.globalIndex);
+tr.innerHTML = `
+<td class="py-3 px-2">${e.status === 'Paid' && e.paidDate ? e.paidDate : e.date}</td>
+<td class="py-3 px-2 truncate max-w-[140px]" title="${e.desc}">${e.desc}</td>
+<td class="py-3 px-2"><span class="bg-gray-100 text-gray-700 px-2 py-1 rounded text-xs font-medium">${e.category}</span></td>
+<td class="py-3 px-2 text-right font-semibold ${e.type === 'Income' ? 'text-emerald-600' : 'text-red-600'}">
+${e.type === 'Income' ? '+' : '-'}RM ${parseFloat(e.amount).toFixed(2)}
+</td>
+`;
+transBody.appendChild(tr);
+}
+
+if (e.category === 'Invoice') {
+invCount++;
+const invTr = document.createElement("tr");
+invTr.className = "hover:bg-gray-50/80 cursor-pointer transition";
+invTr.onclick = () => openEditModal(e.globalIndex);
+
+const dueDate = e.dueDate || e.date;
+const isOverdue = e.status !== 'Paid' && dueDate < todayStr;
+if (e.status !== 'Paid') pendingCount++;
+
+let statusHTML = '';
+if (e.status === 'Paid') {
+statusHTML = '<span class="px-2 py-0.5 text-xs font-semibold rounded-full bg-emerald-100 text-emerald-800">Paid</span>';
+} else if (isOverdue) {
+statusHTML = '<span class="px-2 py-0.5 text-xs font-semibold rounded-full bg-red-100 text-red-800">Overdue</span>';
+} else {
+statusHTML = '<span class="px-2 py-0.5 text-xs font-semibold rounded-full bg-amber-100 text-amber-800">Pending</span>';
+}
+
+invTr.innerHTML = `
+<td class="py-3 px-2 font-bold text-[#3b574a]">${e.invNo || 'N/A'}</td>
+<td class="py-3 px-2">${dueDate}</td>
+<td class="py-3 px-2">${statusHTML}</td>
+<td class="py-3 px-2 text-right font-semibold ${e.type === 'Income' ? 'text-emerald-600' : 'text-red-600'}">
+RM ${parseFloat(e.amount).toFixed(2)}
+</td>
+`;
+invoiceBody.appendChild(invTr);
+}
+});
+
+document.getElementById("invoiceCount").textContent = invCount;
+document.getElementById("pendingInvInfo").textContent = `${pendingCount} Pending Invoices`;
+document.getElementById("transCount").textContent = `${currentEntries.length} entries (Click to edit)`;
+
+renderCashFlowChart(allEntries);
+}
+
+function renderCashFlowChart(allEntries) {
+const labels = [];
+const incomeData = [];
+const expenseData = [];
+last6MonthsData = [];
+
+for (let i = 5; i >= 0; i--) {
+let d = new Date(selectedYear, selectedMonth - 1 - i, 1);
+let y = d.getFullYear();
+let m = d.getMonth() + 1;
+let monthLabel = d.toLocaleString('en-US', { month: 'short' }) + ' ' + y;
+labels.push(monthLabel);
+
+let inc = 0, exp = 0;
+allEntries.forEach(e => {
+if (e.category === 'Invoice' && e.status !== 'Paid') return;
+let activeDate = (e.status === 'Paid' && e.paidDate) ? e.paidDate : e.date;
+let ed = parseLocalDate(activeDate);
+
+if (ed.getFullYear() === y && (ed.getMonth() + 1) === m) {
+if (e.type === 'Income') inc += parseFloat(e.amount);
+else exp += parseFloat(e.amount);
+}
+});
+
+incomeData.push(inc);
+expenseData.push(exp);
+
+last6MonthsData.push({
+year: y,
+month: m,
+label: monthLabel,
+income: inc,
+expense: exp,
+netInflow: inc - exp
+});
+}
+
+const ctx = document.getElementById('cashFlowChart').getContext('2d');
+if (myChartInstance) myChartInstance.destroy();
+
+myChartInstance = new Chart(ctx, {
+type: 'bar',
+data: {
+labels: labels,
+datasets: [
+{ label: 'Income (RM)', data: incomeData, backgroundColor: '#3b574a', borderRadius: 6 },
+{ label: 'Expense (RM)', data: expenseData, backgroundColor: '#d97706', borderRadius: 6 }
+]
+},
+options: {
+responsive: true,
+maintainAspectRatio: false,
+plugins: {
+legend: { position: 'top' },
+tooltip: {
+callbacks: {
+footer: (tooltipItems) => {
+const index = tooltipItems[0].dataIndex;
+const net = last6MonthsData[index].netInflow;
+return `Net Inflow: RM ${net.toFixed(2)}`;
+}
+}
+}
+},
+onClick: (e, elements) => {
+if (elements.length > 0) {
+const index = elements[0].index;
+const item = last6MonthsData[index];
+selectedYear = item.year;
+selectedMonth = item.month;
+renderDashboard();
+}
+}
+}
+});
+}
+
+function openAddModal() {
+document.getElementById("modalTitle").textContent = "Add New Entry";
+document.getElementById("editIndex").value = "-1";
+document.getElementById("saveBtn").textContent = "Save Entry";
+document.getElementById("deleteBtn").style.display = "none";
+document.querySelector("#entryModal form").reset();
+const todayStr = new Date().toISOString().split('T')[0];
+document.getElementById('entryDate').value = todayStr;
+document.getElementById('entryDueDate').value = todayStr;
+document.getElementById('entryStatus').value = "Pending";
+
+toggleInvoiceFields();
+togglePaidDateField();
+document.getElementById("entryModal").classList.remove("hidden");
+document.getElementById("entryModal").classList.add("flex");
+}
+
+function openEditModal(index) {
+const entries = JSON.parse(localStorage.getItem("wispendEntries") || "[]");
+const item = entries[index];
+if (!item) return;
+
+document.getElementById("modalTitle").textContent = "Edit Entry";
+document.getElementById("editIndex").value = index;
+document.getElementById("entryType").value = item.type;
+document.getElementById("entryCategory").value = item.category;
+document.getElementById("entryInvNo").value = item.invNo || "";
+document.getElementById("entryDesc").value = item.desc;
+document.getElementById("entryAmount").value = item.amount;
+document.getElementById("entryDate").value = item.date;
+document.getElementById("entryDueDate").value = item.dueDate || item.date;
+document.getElementById("entryStatus").value = item.status || "Paid";
+document.getElementById("entryPaidDate").value = item.paidDate || item.date;
+
+toggleInvoiceFields();
+togglePaidDateField();
+
+document.getElementById("saveBtn").textContent = "Update Entry";
+document.getElementById("deleteBtn").style.display = "block";
+document.getElementById("entryModal").classList.remove("hidden");
+document.getElementById("entryModal").classList.add("flex");
+}
+
+function saveEntry(event) {
+event.preventDefault();
+const editIndex = parseInt(document.getElementById("editIndex").value);
+const entries = JSON.parse(localStorage.getItem("wispendEntries") || "[]");
+
+const category = document.getElementById("entryCategory").value;
+const invNo = document.getElementById("entryInvNo").value.trim();
+
+if (category === "Invoice" && !invNo) {
+alert("Please enter the Invoice Number!");
+return;
+}
+
+const existingItem = editIndex !== -1 ? entries[editIndex] : {};
+const invoiceId = existingItem.invoiceId || Date.now();
+
+const entryData = {
+id: existingItem.id || Date.now(),
+title: document.getElementById("entryDesc").value,
+type: document.getElementById("entryType").value,
+category: category,
+invNo: invNo,
+desc: document.getElementById("entryDesc").value,
+amount: document.getElementById("entryAmount").value,
+date: document.getElementById("entryDate").value,
+dueDate: document.getElementById("entryDueDate").value || document.getElementById("entryDate").value,
+status: document.getElementById("entryStatus").value,
+paidDate: document.getElementById("entryStatus").value === "Paid" ? document.getElementById("entryPaidDate").value : "",
+invoiceId: invoiceId
+};
+
+if (editIndex !== -1) {
+    const editReason = prompt("Please enter the reason for editing this entry:");
+    if (editReason === null) return;
+
+    let historyList = JSON.parse(localStorage.getItem("wispendHistory") || "[]");
+    historyList.push({
+        id: Date.now(),
+        action: 'Edit Entry',
+        oldEntry: entries[editIndex], // 👈 核心：必须把修改前的数据保存下来！
+        entry: entryData,             // 👈 修改后的数据
+        reason: editReason.trim() || "No reason provided",
+        deletedAtTimestamp: new Date().getTime(),
+        deletedAtDate: new Date().toISOString().split('T')[0]
+    });
+    localStorage.setItem("wispendHistory", JSON.stringify(historyList));
+}
+
+
+if (editIndex === -1) {
+entries.push(entryData);
+} else {
+entries[editIndex] = entryData;
+}
+
+localStorage.setItem("wispendEntries", JSON.stringify(entries));
+
+if (category === "Invoice") {
+let invoices = JSON.parse(localStorage.getItem("wispend_invoices") || "[]");
+const existingIndex = invoices.findIndex(i => i.id === invoiceId || i.number === invNo);
+const invoiceObj = {
+id: invoiceId,
+number: invNo,
+company: entryData.desc,
+amount: parseFloat(entryData.amount),
+dueDate: entryData.dueDate,
+payments: entryData.status === "Paid" ? [{ date: entryData.paidDate || entryData.date, amount: parseFloat(entryData.amount) }] : []
+};
+
+if (existingIndex > -1) {
+invoices[existingIndex] = invoiceObj;
+} else {
+invoices.unshift(invoiceObj);
+}
+
+localStorage.setItem("wispend_invoices", JSON.stringify(invoices));
+localStorage.setItem("wispendInvoices", JSON.stringify(invoices));
+}
+
+closeModal();
+renderDashboard();
+alert(editIndex === -1 ? "New entry added successfully!" : "Entry updated and recorded in History.");
+}
+
+function deleteEntry() {
+const editIndex = parseInt(document.getElementById("editIndex").value);
+if (editIndex !== -1) {
+const reason = prompt("Please enter the reason for deletion:");
+if (reason === null) return;
+
+const entries = JSON.parse(localStorage.getItem("wispendEntries") || "[]");
+let historyList = JSON.parse(localStorage.getItem("wispendHistory") || "[]");
+const target = entries[editIndex];
+
+if (target) {
+historyList.push({
+id: Date.now(),
+action: 'Delete Entry',
+entry: target,
+reason: reason.trim() || "No reason provided",
+deletedAtTimestamp: new Date().getTime(),
+deletedAtDate: new Date().toISOString().split('T')[0]
+});
+localStorage.setItem("wispendHistory", JSON.stringify(historyList));
+}
+
+if (target && target.category === "Invoice") {
+let invoices = JSON.parse(localStorage.getItem("wispend_invoices") || "[]");
+invoices = invoices.filter(i => i.id !== target.invoiceId && i.number !== target.invNo);
+localStorage.setItem("wispend_invoices", JSON.stringify(invoices));
+localStorage.setItem("wispendInvoices", JSON.stringify(invoices));
+}
+
+entries.splice(editIndex, 1);
+localStorage.setItem("wispendEntries", JSON.stringify(entries));
+closeModal();
+renderDashboard();
+alert("Entry deleted and recorded in History.");
+}
+}
+
+function closeModal() {
+document.getElementById("entryModal").classList.add("hidden");
+document.getElementById("entryModal").classList.remove("flex");
+}
+
+window.addEventListener('focus', function() {
+if (typeof renderDashboard === 'function') {
+renderDashboard();
+}
+});
+
+window.addEventListener('storage', function(e) {
+if (e.key === 'wispendEntries' || e.key === 'wispend_invoices' || e.key === 'wispendInvoices') {
+renderDashboard();
+}
+});
+</script>
+
+</body>
+</html>

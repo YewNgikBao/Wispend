@@ -1,0 +1,524 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>Transactions - WISPEND</title>
+
+<!-- 关联清单 -->
+<link rel="manifest" href="manifest.json">
+
+<!-- 针对苹果 iOS 设备的专用图标支持 -->
+<link rel="apple-touch-icon" sizes="180x180" href="https://lh3.google.com/u/0/d/1-WvkMpo2mSk6F3rouTRuoMFT7JAh5e9M">
+
+<!-- 手机端全屏及主题色配置 -->
+<meta name="apple-mobile-web-app-capable" content="yes">
+<meta name="apple-mobile-web-app-status-bar-style" content="black-translucent">
+<meta name="theme-color" content="#3b574a">
+
+<style>
+* { margin: 0; padding: 0; box-sizing: border-box; font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, sans-serif; }
+body { background-color: #f7f6f2; color: #1f302b; display: flex; height: 100vh; overflow: hidden; }
+
+/* 左侧 Sidebar (固定不动，内部上下分栏) */
+.sidebar { width: 260px; background: #f2f0e9; padding: 24px; display: flex; flex-direction: column; border-right: 1px solid #e2e8e4; justify-content: space-between; flex-shrink: 0; height: 100vh; position: sticky; top: 0; }
+
+.user-profile { display: flex; align-items: center; gap: 12px; cursor: pointer; padding: 10px; border-radius: 12px; transition: 0.2s; text-decoration: none; color: inherit; background: rgba(227, 235, 227, 0.6); border: 1px solid rgba(220, 228, 220, 0.6); margin-bottom: 24px; }
+.user-profile:hover { background: #e3ebe3; }
+
+.avatar { width: 36px; height: 36px; background: #3b574a; color: white; border-radius: 50%; display: flex; align-items: center; justify-content: center; font-weight: bold; font-size: 15px; flex-shrink: 0; overflow: hidden; }
+.brand-title { font-weight: 700; font-size: 14px; color: #1f302b; line-height: 1.2; white-space: nowrap; overflow: hidden; text-overflow: ellipsis; }
+.brand-sub { font-size: 12px; color: #697d75; }
+
+.nav-section-title { font-size: 11px; font-weight: 700; color: #8e9f97; letter-spacing: 1px; margin-bottom: 12px; }
+.nav-item { display: block; padding: 10px 12px; color: #4e6158; text-decoration: none; border-radius: 8px; font-size: 14px; font-weight: 600; margin-bottom: 4px; transition: 0.2s; }
+.nav-item.active { background: #e3ebe3; color: #2c4338; }
+.nav-item:hover:not(.active) { background: rgba(0,0,0,0.04); }
+
+/* 左下角 Logo 区域 */
+.sidebar-footer { border-top: 1px solid #e2e8e4; display: flex; align-items: center; gap: 12px; padding-top: 16px; }
+.sidebar-logo-img { width: 36px; height: 36px; border-radius: 10px; object-fit: cover; flex-shrink: 0; box-shadow: 0 1px 2px rgba(0,0,0,0.05); }
+
+/* 主区域 Main Content */
+.main-content { flex: 1; padding: 32px 40px; overflow-y: auto; height: 100vh; }
+
+.top-header { display: flex; justify-content: space-between; align-items: center; margin-bottom: 25px; }
+.greeting h1 { font-size: 30px; font-family: serif; font-weight: normal; color: #1f302b; }
+.greeting p { font-size: 13px; color: #697d75; margin-top: 4px; }
+.header-actions { display: flex; align-items: center; gap: 15px; }
+
+.year-picker { display: flex; align-items: center; background: white; border: 1px solid #d5ded8; border-radius: 8px; padding: 4px; box-shadow: 0 1px 2px rgba(0,0,0,0.02); }
+.year-btn { background: none; border: none; padding: 6px 10px; cursor: pointer; font-size: 13px; color: #4e6158; border-radius: 4px; }
+.year-btn:hover { background: #f0f4f1; }
+.current-year-display { font-weight: 700; font-size: 13px; padding: 0 8px; }
+
+.btn-new-entry { background: #3b574a; color: white; border: none; padding: 9px 16px; border-radius: 8px; font-weight: 600; cursor: pointer; font-size: 13px; transition: 0.2s; box-shadow: 0 1px 2px rgba(0,0,0,0.05); }
+.btn-new-entry:hover { background: #2c4338; }
+
+/* 交易主面板 Panel */
+.panel { background: white; border-radius: 16px; padding: 24px; border: 1px solid #e1e8e3; box-shadow: 0 4px 12px rgba(0,0,0,0.03); }
+
+/* 过滤与搜索工具栏 */
+.toolbar { display: flex; justify-content: space-between; align-items: center; margin-bottom: 20px; flex-wrap: wrap; gap: 15px; }
+.type-tabs { display: flex; background: #f0f4f1; padding: 4px; border-radius: 20px; gap: 4px; }
+.tab-btn { border: none; background: none; padding: 6px 16px; border-radius: 16px; font-size: 13px; font-weight: 600; color: #697d75; cursor: pointer; transition: 0.2s; }
+.tab-btn.active { background: white; color: #1f302b; box-shadow: 0 2px 4px rgba(0,0,0,0.05); }
+
+.search-filter-group { display: flex; gap: 10px; align-items: center; }
+.filter-select { padding: 8px 14px; border: 1px solid #d5ded8; border-radius: 20px; font-size: 13px; color: #4e6158; background: white; outline: none; cursor: pointer; transition: 0.2s; }
+.filter-select:focus { border-color: #3b574a; }
+.search-input { padding: 8px 16px; border: 1px solid #d5ded8; border-radius: 20px; font-size: 13px; outline: none; width: 220px; background: white; transition: 0.2s; }
+.search-input:focus { border-color: #3b574a; box-shadow: 0 0 0 3px rgba(59, 87, 74, 0.1); }
+
+/* 滚动区域 */
+.table-scroll-container { max-height: calc(100vh - 300px); overflow-y: auto; border-radius: 8px; }
+
+/* 表格样式 */
+table { width: 100%; border-collapse: collapse; text-align: left; }
+thead { position: sticky; top: 0; background: white; z-index: 10; box-shadow: 0 1px 0 #eee; }
+th { font-size: 11px; color: #8e9f97; letter-spacing: 0.5px; padding: 12px 10px; border-bottom: 1px solid #eee; }
+td { padding: 16px 10px; font-size: 13px; border-bottom: 1px solid #f5f7f5; }
+tbody tr { cursor: pointer; transition: background 0.15s; }
+tbody tr:hover { background-color: #f7faf8; }
+
+.cat-tag { padding: 4px 10px; border-radius: 12px; font-size: 11px; font-weight: 600; display: inline-block; }
+.cat-Sales { background: #e4f2eb; color: #2e7d5a; }
+.cat-Invoice { background: #e3ebe3; color: #2c4338; }
+.cat-Facilities { background: #fce8e6; color: #c53929; }
+.cat-Logistics { background: #fef3c7; color: #d97706; }
+.cat-Payroll { background: #fee2e2; color: #991b1b; }
+.cat-Default { background: #f0f4f1; color: #4e6158; }
+
+/* Status 状态标签样式 */
+.status-tag { padding: 3px 8px; border-radius: 10px; font-size: 10px; font-weight: 700; margin-left: 6px; text-transform: uppercase; display: inline-block; }
+.status-paid { background-color: #e4f2eb; color: #2e7d5a; }
+.status-pending { background-color: #fef3c7; color: #d97706; }
+.status-overdue { background-color: #fce8e6; color: #c53929; }
+
+.amt-income { color: #2e7d5a; font-weight: 700; }
+.amt-expense { color: #c53929; font-weight: 700; }
+
+/* Modal 弹窗 */
+.modal { display: none; position: fixed; inset: 0; background: rgba(0,0,0,0.4); backdrop-filter: blur(2px); justify-content: center; align-items: center; z-index: 1000; animation: fadeIn 0.2s ease; }
+.modal.active { display: flex; }
+.modal-box { background: white; padding: 30px; border-radius: 16px; width: 450px; position: relative; box-shadow: 0 15px 35px rgba(0,0,0,0.15); animation: scaleUp 0.2s ease; }
+.modal-title { font-size: 18px; font-weight: 700; margin-bottom: 20px; color: #1f302b; }
+.form-group { margin-bottom: 15px; }
+.form-group label { display: block; font-size: 12px; font-weight: 700; margin-bottom: 6px; color: #4e6158; }
+.form-group input, .form-group select { width: 100%; padding: 10px; border: 1px solid #d5ded8; border-radius: 8px; font-size: 14px; outline: none; transition: 0.2s; background: #fff; }
+.form-group input:focus, .form-group select:focus { border-color: #3b574a; box-shadow: 0 0 0 3px rgba(59, 87, 74, 0.1); }
+.close-btn { position: absolute; right: 20px; top: 20px; border: none; background: none; font-size: 20px; cursor: pointer; color: #8e9f97; transition: 0.2s; }
+.close-btn:hover { color: #1f302b; }
+.btn-delete { background: #fce8e6; color: #c53929; border: none; padding: 10px 20px; border-radius: 8px; font-weight: 600; cursor: pointer; font-size: 14px; width: 100%; margin-top: 8px; transition: 0.2s; }
+.btn-delete:hover { background: #fad0cd; }
+
+@keyframes fadeIn { from { opacity: 0; } to { opacity: 1; } }
+@keyframes scaleUp { from { transform: scale(0.95); } to { transform: scale(1); } }
+</style>
+</head>
+
+<body>
+
+<!-- 左侧 Sidebar -->
+<aside class="sidebar">
+<div>
+<!-- 最上方：Profile 用户信息 -->
+<a href="profile.html" class="user-profile" title="View Profile">
+<div class="avatar" id="userAvatar">U</div>
+<div style="overflow: hidden;">
+<div class="brand-title" id="userNameDisplay">User Name</div>
+<div class="brand-sub">View Profile</div>
+</div>
+</a>
+
+<!-- 导航菜单 -->
+<div>
+<div class="nav-section-title">WORKSPACE</div>
+<a href="dashboard.html" class="nav-item">Dashboard</a>
+<a href="transactions.html" class="nav-item active">Transactions</a>
+<a href="invoices.html" class="nav-item">Invoices</a>
+<a href="reports.html" class="nav-item">Reports</a>
+<a href="history.html" class="nav-item">History</a>
+</div>
+</div>
+
+<!-- 左下角：Website Logo -->
+<div class="sidebar-footer">
+<img src="https://lh3.google.com/u/0/d/1-WvkMpo2mSk6F3rouTRuoMFT7JAh5e9M" alt="Logo" class="sidebar-logo-img">
+<div>
+<div style="font-weight: 700; font-size: 14px; color: #1f302b; line-height: 1.2;">WISPEND</div>
+<div class="brand-sub">Financial Ledger</div>
+</div>
+</div>
+</aside>
+
+<!-- 主界面 -->
+<main class="main-content">
+<header class="top-header">
+<div class="greeting">
+<h1>Transactions</h1>
+<p id="transactionSubText">0 postings · Full Year 2026</p>
+</div>
+<div class="header-actions">
+<div class="year-picker">
+<button class="year-btn" onclick="changeYear(-1)">◀</button>
+<span class="current-year-display" id="yearDisplay">2026</span>
+<button class="year-btn" onclick="changeYear(1)">▶</button>
+</div>
+<button class="btn-new-entry" onclick="openAddModal()">+ New entry</button>
+</div>
+</header>
+
+<!-- 交易列表主面板 -->
+<section class="panel">
+<div class="toolbar">
+<div class="type-tabs">
+<button class="tab-btn active" onclick="setTypeFilter('All', this)">All</button>
+<button class="tab-btn" onclick="setTypeFilter('Income', this)">Income</button>
+<button class="tab-btn" onclick="setTypeFilter('Expense', this)">Expense</button>
+</div>
+
+<div class="search-filter-group">
+<select class="filter-select" id="categoryFilter" onchange="renderTransactions()">
+<option value="All">All categories</option>
+</select>
+<input type="text" class="search-input" id="searchInput" placeholder="Search description or amount..." oninput="renderTransactions()">
+</div>
+</div>
+
+<div class="table-scroll-container">
+<table>
+<thead>
+<tr>
+<th style="width: 15%;">DATE</th>
+<th style="width: 40%;">NAME</th>
+<th style="width: 25%;">CATEGORY</th>
+<th style="width: 20%; text-align: right;">AMOUNT</th>
+</tr>
+</thead>
+<tbody id="transactionTableBody">
+<!-- 动态渲染数据 -->
+</tbody>
+</table>
+</div>
+</section>
+</main>
+
+<!-- Modal 弹窗 -->
+<div class="modal" id="entryModal">
+<div class="modal-box">
+<button class="close-btn" onclick="closeModal()">×</button>
+<div class="modal-title" id="modalTitle">Add New Entry</div>
+<form onsubmit="saveEntry(event)">
+<input type="hidden" id="editIndex" value="-1">
+
+<div class="form-group">
+<label>Type</label>
+<select id="entryType">
+<option value="Income">Income</option>
+<option value="Expense">Expense</option>
+</select>
+</div>
+
+<div class="form-group">
+<label>Description / Item Name</label>
+<input type="text" id="entryDesc" placeholder="e.g. Sales Revenue / Rent" required>
+</div>
+
+<div class="form-group">
+<label>Amount (RM)</label>
+<input type="number" step="0.01" id="entryAmount" placeholder="0.00" required>
+</div>
+
+<div class="form-group">
+<label>Date</label>
+<input type="date" id="entryDate" required>
+</div>
+
+<div class="form-group">
+<label>Category</label>
+<select id="entryCategory"></select>
+</div>
+
+<button type="submit" class="btn-new-entry" style="width: 100%; margin-top: 10px;" id="saveBtn">Save Entry</button>
+<button type="button" class="btn-delete" id="deleteBtn" style="display: none;" onclick="deleteEntry()">Delete Entry</button>
+</form>
+</div>
+</div>
+
+<!-- =========================
+FIREBASE & APP LOGIC
+========================= -->
+<script type="module">
+import { initializeApp } from "https://www.gstatic.com/firebasejs/10.8.0/firebase-app.js";
+import { getFirestore } from "https://www.gstatic.com/firebasejs/10.8.0/firebase-firestore.js";
+
+const firebaseConfig = {
+apiKey: "AIzaSyDKXFjTwZ92ITi-s4Sbph_bjNjuvkNQOb4",
+authDomain: "wispend-1234.firebaseapp.com",
+projectId: "wispend-1234",
+storageBucket: "wispend-1234.firebasestorage.app",
+messagingSenderId: "227503315553",
+appId: "1:227503315553:web:a913fdcab269787e926820",
+measurementId: "G-L3S3EK3Q1Z"
+};
+
+const app = initializeApp(firebaseConfig);
+const db = getFirestore(app);
+
+const currentUser = JSON.parse(localStorage.getItem("wispendCurrentUser"));
+if (!currentUser) {
+alert("Please login first!");
+window.location.href = "index.html";
+}
+</script>
+
+<script>
+let selectedYear = new Date().getFullYear();
+let activeTypeFilter = 'All';
+
+window.onload = function() {
+loadUserData();
+initCategories();
+document.getElementById('entryDate').valueAsDate = new Date();
+renderTransactions();
+};
+
+function loadUserData() {
+const currentUser = JSON.parse(localStorage.getItem("wispendCurrentUser"));
+if (currentUser && currentUser.name) {
+document.getElementById("userNameDisplay").textContent = currentUser.name;
+
+const avatarEl = document.getElementById("userAvatar");
+if (currentUser.avatar) {
+avatarEl.innerHTML = `<img src="${currentUser.avatar}" alt="Avatar" style="width:100%; height:100%; object-fit:cover; border-radius:50%;">`;
+} else {
+avatarEl.textContent = currentUser.name.charAt(0).toUpperCase();
+}
+} else {
+window.location.href = "index.html";
+}
+}
+
+function initCategories() {
+const savedCats = JSON.parse(localStorage.getItem("wispendCategories")) || ["Invoice", "Sales", "Facilities", "Logistics", "Payroll", "Others"];
+const filterSelect = document.getElementById("categoryFilter");
+filterSelect.innerHTML = '<option value="All">All categories</option>';
+const entrySelect = document.getElementById("entryCategory");
+entrySelect.innerHTML = '';
+
+savedCats.forEach(cat => {
+filterSelect.innerHTML += `<option value="${cat}">${cat}</option>`;
+entrySelect.innerHTML += `<option value="${cat}">${cat}</option>`;
+});
+}
+
+function changeYear(delta) {
+selectedYear += delta;
+document.getElementById("yearDisplay").textContent = selectedYear;
+renderTransactions();
+}
+
+function setTypeFilter(type, btnElement) {
+activeTypeFilter = type;
+document.querySelectorAll('.tab-btn').forEach(btn => btn.classList.remove('active'));
+btnElement.classList.add('active');
+renderTransactions();
+}
+
+function getEntries() {
+const raw1 = localStorage.getItem("wispendEntries");
+const raw2 = localStorage.getItem("wispend_transactions");
+if (raw1) return JSON.parse(raw1);
+if (raw2) return JSON.parse(raw2);
+return [];
+}
+
+function saveEntries(entries) {
+localStorage.setItem("wispendEntries", JSON.stringify(entries));
+localStorage.setItem("wispend_transactions", JSON.stringify(entries));
+}
+
+function getInvoiceStatus(item) {
+const invoices = JSON.parse(localStorage.getItem("wispendInvoices") || localStorage.getItem("wispend_invoices") || "[]");
+const matched = invoices.find(inv => 
+(inv.number && item.desc && item.desc.includes(inv.number)) || 
+(inv.company && item.desc && item.desc.toLowerCase().includes(inv.company.toLowerCase())) ||
+(item.invoiceId && String(item.invoiceId) === String(inv.id))
+);
+
+if (matched) {
+const today = new Date();
+today.setHours(0,0,0,0);
+const due = new Date(matched.dueDate);
+if (matched.status !== 'Paid' && due < today) return 'Overdue';
+return matched.status || 'Pending';
+}
+return item.status || 'Pending';
+}
+
+function renderTransactions() {
+const allEntries = getEntries();
+const selectedCategory = document.getElementById("categoryFilter").value;
+const searchKeyword = document.getElementById("searchInput").value.trim().toLowerCase();
+
+let filtered = allEntries.map((e, idx) => ({...e, globalIndex: idx})).filter(e => {
+if (!e.date) return false;
+const d = new Date(e.date);
+return d.getFullYear() === selectedYear;
+});
+
+if (activeTypeFilter !== 'All') {
+filtered = filtered.filter(e => e.type === activeTypeFilter);
+}
+
+if (selectedCategory !== 'All') {
+filtered = filtered.filter(e => e.category === selectedCategory);
+}
+
+if (searchKeyword !== '') {
+filtered = filtered.filter(e => {
+const descMatch = e.desc && e.desc.toLowerCase().includes(searchKeyword);
+const amountMatch = e.amount && (parseFloat(e.amount).toFixed(2).toString().includes(searchKeyword) || e.amount.toString().includes(searchKeyword));
+return descMatch || amountMatch;
+});
+}
+
+filtered.sort((a, b) => new Date(b.date) - new Date(a.date));
+
+document.getElementById("transactionSubText").textContent = `${filtered.length} postings · Full Year ${selectedYear}`;
+
+const tbody = document.getElementById("transactionTableBody");
+tbody.innerHTML = "";
+
+if (filtered.length === 0) {
+tbody.innerHTML = `<tr><td colspan="4" style="text-align: center; color: #8e9f97; padding: 30px;">No transactions found for ${selectedYear}</td></tr>`;
+return;
+}
+
+filtered.forEach(e => {
+const tr = document.createElement("tr");
+tr.onclick = () => openEditModal(e.globalIndex);
+
+const dateObj = new Date(e.date);
+const formattedDate = isNaN(dateObj.getTime()) ? e.date : dateObj.toLocaleDateString('en-US', { month: 'short', day: '2-digit' });
+
+const catClass = ['Sales', 'Invoice', 'Facilities', 'Logistics', 'Payroll'].includes(e.category) ? `cat-${e.category}` : 'cat-Default';
+
+let statusHTML = '';
+if (e.category === 'Invoice') {
+const currentStatus = getInvoiceStatus(e);
+const statusClass = `status-${currentStatus.toLowerCase()}`;
+statusHTML = `<span class="status-tag ${statusClass}">${currentStatus}</span>`;
+}
+
+tr.innerHTML = `
+<td style="color: #697d75; font-weight: 500;">${formattedDate}</td>
+<td style="font-weight: 600; color: #1f302b;">${e.desc}</td>
+<td>
+<span class="cat-tag ${catClass}">${e.category}</span>
+${statusHTML}
+</td>
+<td style="text-align: right;" class="${e.type === 'Income' ? 'amt-income' : 'amt-expense'}">
+${e.type === 'Income' ? '+' : '-'}RM ${parseFloat(e.amount || 0).toLocaleString('en-US', {minimumFractionDigits: 2, maximumFractionDigits: 2})}
+</td>
+`;
+tbody.appendChild(tr);
+});
+}
+
+function openAddModal() {
+document.getElementById("modalTitle").textContent = "Add New Entry";
+document.getElementById("editIndex").value = "-1";
+document.getElementById("saveBtn").textContent = "Save Entry";
+document.getElementById("deleteBtn").style.display = "none";
+document.querySelector("#entryModal form").reset();
+document.getElementById('entryDate').valueAsDate = new Date();
+document.getElementById("entryModal").classList.add("active");
+}
+
+function openEditModal(index) {
+const entries = getEntries();
+const item = entries[index];
+if (!item) return;
+
+document.getElementById("modalTitle").textContent = "Edit Entry";
+document.getElementById("editIndex").value = index;
+document.getElementById("entryType").value = item.type || 'Income';
+document.getElementById("entryDesc").value = item.desc || '';
+document.getElementById("entryAmount").value = item.amount || '';
+document.getElementById("entryDate").value = item.date || '';
+document.getElementById("entryCategory").value = item.category || 'Sales';
+
+document.getElementById("saveBtn").textContent = "Update Entry";
+document.getElementById("deleteBtn").style.display = "block";
+document.getElementById("entryModal").classList.add("active");
+}
+
+function saveEntry(event) {
+event.preventDefault();
+const editIndex = parseInt(document.getElementById("editIndex").value);
+const entries = getEntries();
+
+const entryData = {
+type: document.getElementById("entryType").value,
+desc: document.getElementById("entryDesc").value,
+amount: document.getElementById("entryAmount").value,
+date: document.getElementById("entryDate").value,
+category: document.getElementById("entryCategory").value
+};
+
+if (editIndex === -1) {
+entryData.id = Date.now();
+entries.unshift(entryData);
+} else {
+entryData.id = entries[editIndex].id || Date.now();
+entries[editIndex] = entryData;
+}
+
+saveEntries(entries);
+closeModal();
+renderTransactions();
+}
+
+function deleteEntry() {
+const editIndex = parseInt(document.getElementById("editIndex").value);
+if (editIndex !== -1) {
+const reason = prompt("Please enter the reason for deletion:");
+if (reason === null) return; 
+
+const entries = getEntries();
+const deletedItem = entries[editIndex];
+
+const history = JSON.parse(localStorage.getItem("wispendHistory") || "[]");
+history.push({
+action: 'Delete Transaction',
+description: deletedItem.desc,
+amount: deletedItem.amount,
+type: deletedItem.type,
+reason: reason.trim() || 'No reason provided',
+timestamp: new Date().toLocaleString()
+});
+localStorage.setItem("wispendHistory", JSON.stringify(history));
+
+entries.splice(editIndex, 1);
+saveEntries(entries);
+closeModal();
+renderTransactions();
+}
+}
+
+function closeModal() { 
+document.getElementById("entryModal").classList.remove("active"); 
+}
+
+window.addEventListener('storage', function(e) {
+if (e.key === 'wispendEntries' || e.key === 'wispend_transactions' || e.key === 'wispendCurrentUser') {
+loadUserData();
+renderTransactions();
+}
+});
+</script>
+
+</body>
+</html>
