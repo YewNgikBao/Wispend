@@ -226,7 +226,6 @@ tbody tr:hover { background-color: #f7faf8; }
 <input type="date" id="entryDate" required>
 </div>
 
-<!-- 新增：Due Date 输入框，专为 Invoice 准备 -->
 <div class="form-group" id="dueDateGroup">
 <label>Due Date</label>
 <input type="date" id="entryDueDate">
@@ -238,14 +237,13 @@ tbody tr:hover { background-color: #f7faf8; }
 </div>
 
 <button type="submit" class="btn-new-entry" style="width: 100%; margin-top: 10px;" id="saveBtn">Save Entry</button>
-<button type="button" class="btn-delete" id="deleteBtn" style="display: none;" onclick="deleteEntry()">Delete Entry</button>
+<!-- 绑定全局函数 onclick 触发删除 -->
+<button type="button" class="btn-delete" id="deleteBtn" style="display: none;" onclick="deleteTransaction()">Delete Entry</button>
 </form>
 </div>
 </div>
 
-<!-- =========================
-FIREBASE AUTH & FIRESTORE SYNC
-========================= -->
+<!-- FIREBASE AUTH & FIRESTORE SYNC -->
 <script type="module">
 import { initializeApp } from "https://www.gstatic.com/firebasejs/10.8.0/firebase-app.js";
 import { getAuth, onAuthStateChanged } from "https://www.gstatic.com/firebasejs/10.8.0/firebase-auth.js";
@@ -425,7 +423,7 @@ return descMatch || amountMatch;
 });
 }
 
-filtered.sort((a, b) => new Date(b.date) - new Date(b.date));
+filtered.sort((a, b) => new Date(b.date) - new Date(a.date));
 document.getElementById("transactionSubText").textContent = `${filtered.length} postings · Full Year ${selectedYear}`;
 
 const tbody = document.getElementById("transactionTableBody");
@@ -453,7 +451,6 @@ catClass = 'cat-PaymentReceived';
 let dateDisplayHTML = formattedDate;
 let statusHTML = '';
 
-// 如果是 Invoice，显示 Due Date 和状态标签
 if (e.category === 'Invoice') {
 const dueDateStr = e.dueDate ? new Date(e.dueDate).toLocaleDateString('en-US', { month: 'short', day: '2-digit' }) : 'N/A';
 dateDisplayHTML = `<div style="font-size:12px;">Issued: ${formattedDate}</div><div style="font-size:11px; color:#d97706; font-weight:600;">Due: ${dueDateStr}</div>`;
@@ -538,31 +535,51 @@ alert("Failed to save entry: " + error.message);
 }
 };
 
-window.deleteEntry = async function() {
+// 终极直接删除版
+window.deleteTransaction = async function() {
 const editDocId = document.getElementById("editDocId").value;
-if (!editDocId) return;
+
+if (!editDocId) {
+alert("错误：当前表单没有获取到任何 ID！");
+return;
+}
 
 const reason = prompt("Please enter the reason for deletion:");
 if (reason === null) return; 
 
 try {
-const deletedItem = cachedEntries.find(e => e.id === editDocId);
-if (deletedItem) {
-await addDoc(collection(db, "users", currentUid, "history"), {
-action: 'Delete Transaction',
-description: deletedItem.desc,
-amount: deletedItem.amount,
-type: deletedItem.type,
+const deletedItem = cachedEntries.find(e => e.id === editDocId) || {};
+
+// 直接执行云端删除
+await deleteDoc(doc(db, "transactions", editDocId));
+
+// 尝试写入历史日志
+try {
+await addDoc(collection(db, "history"), {
+userId: currentUid,
+action: 'Delete Entry',
+entry: {
+title: deletedItem.desc || 'Transaction Entry',
+desc: deletedItem.desc || 'Transaction Entry',
+amount: deletedItem.amount || 0,
+type: deletedItem.type || 'Expense',
+category: deletedItem.category || 'Others',
+date: deletedItem.date || new Date().toISOString()
+},
 reason: reason.trim() || 'No reason provided',
-timestamp: new Date().toLocaleString()
+timestamp: new Date().getTime(),
+deletedAtDate: new Date().toLocaleString()
 });
+} catch (historyError) {
+console.error("History log error:", historyError);
 }
 
-await deleteDoc(doc(db, "transactions", editDocId));
 closeModal();
+alert("删除成功！");
+location.reload(); 
+
 } catch (error) {
-console.error("Error deleting entry:", error);
-alert("Failed to delete entry: " + error.message);
+alert("删除失败，报错信息: " + error.message);
 }
 };
 
