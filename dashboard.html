@@ -22,14 +22,14 @@
 <script src="https://cdn.jsdelivr.net/npm/chart.js"></script>
 <script>
 tailwind.config = {
-  theme: {
-    extend: {
-      colors: {
-        brand: { 50: '#f4f7f4', 100: '#e3ebe3', 500: '#4a6b5d', 600: '#3b574a', 700: '#2c4338' },
-        bgLight: '#f7f6f2', cardBg: '#ffffff'
-      }
-    }
-  }
+theme: {
+extend: {
+colors: {
+brand: { 50: '#f4f7f4', 100: '#e3ebe3', 500: '#4a6b5d', 600: '#3b574a', 700: '#2c4338' },
+bgLight: '#f7f6f2', cardBg: '#ffffff'
+}
+}
+}
 }
 </script>
 <style>
@@ -262,26 +262,26 @@ FIREBASE CLOUD SCRIPT (Module)
 import { initializeApp } from "https://www.gstatic.com/firebasejs/10.8.0/firebase-app.js";
 import { getAuth, onAuthStateChanged } from "https://www.gstatic.com/firebasejs/10.8.0/firebase-auth.js";
 import { 
-  getFirestore, 
-  collection, 
-  addDoc, 
-  getDocs, 
-  doc, 
-  getDoc,
-  updateDoc, 
-  deleteDoc, 
-  query, 
-  where 
+getFirestore, 
+collection, 
+addDoc, 
+doc, 
+getDoc,
+updateDoc, 
+deleteDoc, 
+query, 
+where,
+onSnapshot // 引入实时监听
 } from "https://www.gstatic.com/firebasejs/10.8.0/firebase-firestore.js";
 
 const firebaseConfig = {
-  apiKey: "AIzaSyDKXFjTwZ92ITi-s4Sbph_bjNjuvkNQOb4",
-  authDomain: "wispend-1234.firebaseapp.com",
-  projectId: "wispend-1234",
-  storageBucket: "wispend-1234.firebasestorage.app",
-  messagingSenderId: "227503315553",
-  appId: "1:227503315553:web:a913fdcab269787e926820",
-  measurementId: "G-L3S3EK3Q1Z"
+apiKey: "AIzaSyDKXFjTwZ92ITi-s4Sbph_bjNjuvkNQOb4",
+authDomain: "wispend-1234.firebaseapp.com",
+projectId: "wispend-1234",
+storageBucket: "wispend-1234.firebasestorage.app",
+messagingSenderId: "227503315553",
+appId: "1:227503315553:web:a913fdcab269787e926820",
+measurementId: "G-L3S3EK3Q1Z"
 };
 
 const app = initializeApp(firebaseConfig);
@@ -298,499 +298,493 @@ let last6MonthsData = [];
 let allEntries = []; 
 
 window.onload = function() {
-  onAuthStateChanged(auth, async (user) => {
-    if (user) {
-      await loadUserDataFromAuth(user);
-      initCategories();
-      await loadEntriesFromCloud(user.uid);
-      renderDashboard();
-    } else {
-      window.location.href = "index.html";
-    }
-  });
+onAuthStateChanged(auth, async (user) => {
+if (user) {
+await loadUserDataFromAuth(user);
+initCategories();
+// 采用 onSnapshot 实时监听云端数据变动
+setupRealtimeListener(user.uid);
+} else {
+window.location.href = "index.html";
+}
+});
 };
 
 async function loadUserDataFromAuth(user) {
-  let userName = user.email.split('@')[0];
-  let userAvatar = "";
+let userName = user.email.split('@')[0];
+let userAvatar = "";
 
-  try {
-    const userDocRef = doc(db, "users", user.uid);
-    const userSnap = await getDoc(userDocRef);
-    if (userSnap.exists()) {
-      const data = userSnap.data();
-      if (data.name) userName = data.name;
-      if (data.avatar) userAvatar = data.avatar;
-    }
-  } catch (e) {
-    console.warn("从云端加载用户名失败，降级使用本地缓存", e);
-    const currentUser = JSON.parse(localStorage.getItem("wispendCurrentUser"));
-    if (currentUser && currentUser.name) {
-      userName = currentUser.name;
-      userAvatar = currentUser.avatar || "";
-    }
-  }
-  document.getElementById("userNameDisplay").textContent = userName;
-  document.getElementById("welcomeHeader").textContent = "Good day, " + userName;
+try {
+const userDocRef = doc(db, "users", user.uid);
+const userSnap = await getDoc(userDocRef);
+if (userSnap.exists()) {
+const data = userSnap.data();
+if (data.name) userName = data.name;
+if (data.avatar) userAvatar = data.avatar;
+}
+} catch (e) {
+console.warn("从云端加载用户名失败，降级使用本地缓存", e);
+const currentUser = JSON.parse(localStorage.getItem("wispendCurrentUser"));
+if (currentUser && currentUser.name) {
+userName = currentUser.name;
+userAvatar = currentUser.avatar || "";
+}
+}
+document.getElementById("userNameDisplay").textContent = userName;
+document.getElementById("welcomeHeader").textContent = "Good day, " + userName;
 
-  const avatarEl = document.getElementById("userAvatar");
-  if (userAvatar) {
-    avatarEl.innerHTML = `<img src="${userAvatar}" alt="Avatar" class="w-full h-full object-cover rounded-full">`;
-  } else {
-    avatarEl.innerHTML = userName.charAt(0).toUpperCase();
-  }
+const avatarEl = document.getElementById("userAvatar");
+if (userAvatar) {
+avatarEl.innerHTML = `<img src="${userAvatar}" alt="Avatar" class="w-full h-full object-cover rounded-full">`;
+} else {
+avatarEl.innerHTML = userName.charAt(0).toUpperCase();
+}
 }
 
-async function loadEntriesFromCloud(uid) {
-  try {
-    const q = query(collection(db, "transactions"), where("userId", "==", uid));
-    const querySnapshot = await getDocs(q);
-    allEntries = [];
-    querySnapshot.forEach((docSnap) => {
-      allEntries.push({ firestoreId: docSnap.id, ...docSnap.data() });
-    });
-  } catch (e) {
-    console.error("Error loading from cloud: ", e);
-    allEntries = JSON.parse(localStorage.getItem("wispendEntries") || "[]");
-  }
+// 实时监听函数：确保在其他页面（如 Transactions）添加或修改记录时，Dashboard 能即时同步
+function setupRealtimeListener(uid) {
+try {
+const q = query(collection(db, "transactions"), where("userId", "==", uid));
+onSnapshot(q, (querySnapshot) => {
+allEntries = [];
+querySnapshot.forEach((docSnap) => {
+allEntries.push({ firestoreId: docSnap.id, ...docSnap.data() });
+});
+localStorage.setItem("wispendEntries", JSON.stringify(allEntries));
+renderDashboard();
+}, (error) => {
+console.error("实时监听云端数据失败: ", error);
+allEntries = JSON.parse(localStorage.getItem("wispendEntries") || "[]");
+renderDashboard();
+});
+} catch (e) {
+console.error("Setup listener error: ", e);
+allEntries = JSON.parse(localStorage.getItem("wispendEntries") || "[]");
+renderDashboard();
+}
 }
 
 function initCategories() {
-  const savedCats = JSON.parse(localStorage.getItem("wispendCategories"));
-  if (savedCats) categories = savedCats;
-  renderCatSelect();
+const savedCats = JSON.parse(localStorage.getItem("wispendCategories"));
+if (savedCats) categories = savedCats;
+renderCatSelect();
 }
 
 function renderCatSelect() {
-  const select = document.getElementById("entryCategory");
-  select.innerHTML = "";
-  categories.forEach(cat => {
-    const opt = document.createElement("option");
-    opt.value = cat;
-    opt.textContent = cat;
-    select.appendChild(opt);
-  });
-  toggleInvoiceFields();
+const select = document.getElementById("entryCategory");
+select.innerHTML = "";
+categories.forEach(cat => {
+const opt = document.createElement("option");
+opt.value = cat;
+opt.textContent = cat;
+select.appendChild(opt);
+});
+toggleInvoiceFields();
 }
 
 window.toggleInvoiceFields = function() {
-  const cat = document.getElementById("entryCategory").value;
-  const invGroup = document.getElementById("invNoGroup");
-  if (cat === "Invoice") {
-    invGroup.style.display = "block";
-  } else {
-    invGroup.style.display = "none";
-  }
+const cat = document.getElementById("entryCategory").value;
+const invGroup = document.getElementById("invNoGroup");
+if (cat === "Invoice") {
+invGroup.style.display = "block";
+} else {
+invGroup.style.display = "none";
+}
 }
 
 window.togglePaidDateField = function() {
-  const status = document.getElementById("entryStatus").value;
-  const paidGroup = document.getElementById("paidDateGroup");
-  if (status === "Paid") {
-    paidGroup.style.display = "block";
-    if (!document.getElementById("entryPaidDate").value) {
-      document.getElementById("entryPaidDate").value = new Date().toISOString().split('T')[0];
-    }
-  } else {
-    paidGroup.style.display = "none";
-  }
+const status = document.getElementById("entryStatus").value;
+const paidGroup = document.getElementById("paidDateGroup");
+if (status === "Paid") {
+paidGroup.style.display = "block";
+if (!document.getElementById("entryPaidDate").value) {
+document.getElementById("entryPaidDate").value = new Date().toISOString().split('T')[0];
+}
+} else {
+paidGroup.style.display = "none";
+}
 }
 
 window.addCategory = function() {
-  const val = document.getElementById("newCatInput").value.trim();
-  if (val && !categories.includes(val)) {
-    categories.push(val);
-    localStorage.setItem("wispendCategories", JSON.stringify(categories));
-    renderCatSelect();
-    document.getElementById("entryCategory").value = val;
-    document.getElementById("newCatInput").value = "";
-  }
+const val = document.getElementById("newCatInput").value.trim();
+if (val && !categories.includes(val)) {
+categories.push(val);
+localStorage.setItem("wispendCategories", JSON.stringify(categories));
+renderCatSelect();
+document.getElementById("entryCategory").value = val;
+document.getElementById("newCatInput").value = "";
+}
 }
 
 window.deleteCategory = function() {
-  const select = document.getElementById("entryCategory");
-  const val = select.value;
-  if (val === "Invoice") {
-    alert("Category 'Invoice' cannot be deleted!");
-    return;
-  }
-  categories = categories.filter(c => c !== val);
-  localStorage.setItem("wispendCategories", JSON.stringify(categories));
-  renderCatSelect();
+const select = document.getElementById("entryCategory");
+const val = select.value;
+if (val === "Invoice") {
+alert("Category 'Invoice' cannot be deleted!");
+return;
+}
+categories = categories.filter(c => c !== val);
+localStorage.setItem("wispendCategories", JSON.stringify(categories));
+renderCatSelect();
 }
 
 window.changeMonth = function(delta) {
-  selectedMonth += delta;
-  if (selectedMonth > 12) { selectedMonth = 1; selectedYear++; }
-  if (selectedMonth < 1) { selectedMonth = 12; selectedYear--; }
-  renderDashboard();
+selectedMonth += delta;
+if (selectedMonth > 12) { selectedMonth = 1; selectedYear++; }
+if (selectedMonth < 1) { selectedMonth = 12; selectedYear--; }
+renderDashboard();
 }
 
 function parseLocalDate(dateStr) {
-  if (!dateStr) return new Date();
-  const parts = dateStr.split('-');
-  return new Date(parts[0], parts[1] - 1, parts[2] || 1);
+if (!dateStr) return new Date();
+const parts = dateStr.split('-');
+return new Date(parts[0], parts[1] - 1, parts[2] || 1);
 }
 
 function renderDashboard() {
-  const monthStr = selectedMonth < 10 ? '0' + selectedMonth : selectedMonth;
-  document.getElementById("monthDisplay").textContent = `${selectedYear} - ${monthStr}`;
+const monthStr = selectedMonth < 10 ? '0' + selectedMonth : selectedMonth;
+document.getElementById("monthDisplay").textContent = `${selectedYear} - ${monthStr}`;
 
-  // 1. 过滤当前月份的交易明细
-  const currentEntries = allEntries.map((e, idx) => ({...e, globalIndex: idx})).filter(e => {
-    let activeDate = e.date;
-    if (e.category === 'Payment Received') {
-      activeDate = e.date; // 还款记录以收款日期为准
-    } else if (e.category === 'Invoice' && e.status !== 'Paid' && e.dueDate) {
-      activeDate = e.dueDate;
-    } else if (e.status === 'Paid' && e.paidDate) {
-      activeDate = e.paidDate;
-    }
-    const d = parseLocalDate(activeDate);
-    return d.getFullYear() === selectedYear && (d.getMonth() + 1) === selectedMonth;
-  });
+const currentEntries = allEntries.map((e, idx) => ({...e, globalIndex: idx})).filter(e => {
+let activeDate = e.date;
+if (e.category === 'Payment Received') {
+activeDate = e.date;
+} else if (e.category === 'Invoice' && e.status !== 'Paid' && e.dueDate) {
+activeDate = e.dueDate;
+} else if (e.status === 'Paid' && e.paidDate) {
+activeDate = e.paidDate;
+}
+const d = parseLocalDate(activeDate);
+return d.getFullYear() === selectedYear && (d.getMonth() + 1) === selectedMonth;
+});
 
-  const prevMonth = selectedMonth === 1 ? 12 : selectedMonth - 1;
-  const prevYear = selectedMonth === 1 ? selectedYear - 1 : selectedYear;
-  
-  const prevEntries = allEntries.filter(e => {
-    let activeDate = e.date;
-    if (e.category === 'Payment Received') {
-      activeDate = e.date;
-    } else if (e.category === 'Invoice' && e.status !== 'Paid' && e.dueDate) {
-      activeDate = e.dueDate;
-    } else if (e.status === 'Paid' && e.paidDate) {
-      activeDate = e.paidDate;
-    }
-    const d = parseLocalDate(activeDate);
-    return d.getFullYear() === prevYear && (d.getMonth() + 1) === prevMonth;
-  });
+const prevMonth = selectedMonth === 1 ? 12 : selectedMonth - 1;
+const prevYear = selectedMonth === 1 ? selectedYear - 1 : selectedYear;
+const prevEntries = allEntries.filter(e => {
+let activeDate = e.date;
+if (e.category === 'Payment Received') {
+activeDate = e.date;
+} else if (e.category === 'Invoice' && e.status !== 'Paid' && e.dueDate) {
+activeDate = e.dueDate;
+} else if (e.status === 'Paid' && e.paidDate) {
+activeDate = e.paidDate;
+}
+const d = parseLocalDate(activeDate);
+return d.getFullYear() === prevYear && (d.getMonth() + 1) === prevMonth;
+});
 
-  let cIncome = 0, cExpense = 0;
-  currentEntries.forEach(e => {
-    // 核心修正逻辑：
-    // - 原始 Invoice 如果状态不是 Paid，则不直接算入收入（防止把未收款的整张发票算进来）。
-    // - 普通收入、Expense 以及 Invoice 的还款记录 ('Payment Received') 正常计入。
-    const isPaymentReceived = e.category === 'Payment Received';
-    const isNormalOrPaidInvoice = (e.category !== 'Invoice' || e.status === 'Paid');
+let cIncome = 0, cExpense = 0;
+currentEntries.forEach(e => {
+const isPaymentReceived = e.category === 'Payment Received';
+const isNormalOrPaidInvoice = (e.category !== 'Invoice' || e.status === 'Paid');
 
-    if (isPaymentReceived || isNormalOrPaidInvoice) {
-      if (e.type === 'Income') cIncome += parseFloat(e.amount);
-      else if (e.type === 'Expense') cExpense += parseFloat(e.amount);
-    }
-  });
+if (isPaymentReceived || isNormalOrPaidInvoice) {
+if (e.type === 'Income') cIncome += parseFloat(e.amount);
+else if (e.type === 'Expense') cExpense += parseFloat(e.amount);
+}
+});
 
-  let pIncome = 0, pExpense = 0;
-  prevEntries.forEach(e => {
-    const isPaymentReceived = e.category === 'Payment Received';
-    const isNormalOrPaidInvoice = (e.category !== 'Invoice' || e.status === 'Paid');
+let pIncome = 0, pExpense = 0;
+prevEntries.forEach(e => {
+const isPaymentReceived = e.category === 'Payment Received';
+const isNormalOrPaidInvoice = (e.category !== 'Invoice' || e.status === 'Paid');
 
-    if (isPaymentReceived || isNormalOrPaidInvoice) {
-      if (e.type === 'Income') pIncome += parseFloat(e.amount);
-      else if (e.type === 'Expense') pExpense += parseFloat(e.amount);
-    }
-  });
+if (isPaymentReceived || isNormalOrPaidInvoice) {
+if (e.type === 'Income') pIncome += parseFloat(e.amount);
+else if (e.type === 'Expense') pExpense += parseFloat(e.amount);
+}
+});
 
-  document.getElementById("totalIncome").textContent = `RM ${cIncome.toFixed(2)}`;
-  document.getElementById("totalExpenses").textContent = `RM ${cExpense.toFixed(2)}`;
-  const profit = cIncome - cExpense;
-  document.getElementById("netProfit").textContent = `RM ${profit.toFixed(2)}`;
+document.getElementById("totalIncome").textContent = `RM ${cIncome.toFixed(2)}`;
+document.getElementById("totalExpenses").textContent = `RM ${cExpense.toFixed(2)}`;
+const profit = cIncome - cExpense;
+document.getElementById("netProfit").textContent = `RM ${profit.toFixed(2)}`;
 
-  const margin = cIncome > 0 ? ((profit / cIncome) * 100).toFixed(1) : 0;
-  document.getElementById("profitMargin").textContent = `Margin ${margin}%`;
+const margin = cIncome > 0 ? ((profit / cIncome) * 100).toFixed(1) : 0;
+document.getElementById("profitMargin").textContent = `Margin ${margin}%`;
 
-  document.getElementById("lastIncomeComp").textContent = `vs RM ${pIncome.toFixed(0)} last month`;
-  document.getElementById("lastExpenseComp").textContent = `vs RM ${pExpense.toFixed(0)} last month`;
+document.getElementById("lastIncomeComp").textContent = `vs RM ${pIncome.toFixed(0)} last month`;
+document.getElementById("lastExpenseComp").textContent = `vs RM ${pExpense.toFixed(0)} last month`;
 
-  const incRate = pIncome > 0 ? (((cIncome - pIncome) / pIncome) * 100).toFixed(1) : 0;
-  const expRate = pExpense > 0 ? (((cExpense - pExpense) / pExpense) * 100).toFixed(1) : 0;
-  document.getElementById("incomeGrowth").textContent = `${incRate >= 0 ? '+' : ''}${incRate}%`;
-  document.getElementById("expenseGrowth").textContent = `${expRate >= 0 ? '+' : ''}${expRate}%`;
+const incRate = pIncome > 0 ? (((cIncome - pIncome) / pIncome) * 100).toFixed(1) : 0;
+const expRate = pExpense > 0 ? (((cExpense - pExpense) / pExpense) * 100).toFixed(1) : 0;
+document.getElementById("incomeGrowth").textContent = `${incRate >= 0 ? '+' : ''}${incRate}%`;
+document.getElementById("expenseGrowth").textContent = `${expRate >= 0 ? '+' : ''}${expRate}%`;
 
-  const transBody = document.getElementById("transactionTableBody");
-  const invoiceBody = document.getElementById("invoiceTableBody");
-  transBody.innerHTML = "";
-  invoiceBody.innerHTML = "";
+const transBody = document.getElementById("transactionTableBody");
+const invoiceBody = document.getElementById("invoiceTableBody");
+transBody.innerHTML = "";
+invoiceBody.innerHTML = "";
 
-  let invCount = 0;
-  let pendingCount = 0;
-  const todayStr = new Date().toISOString().split('T')[0];
+let invCount = 0;
+let pendingCount = 0;
+const todayStr = new Date().toISOString().split('T')[0];
 
-  currentEntries.forEach(e => {
-    // 交易记录列表中显示：非未结清的发票（包括普通收入、支出、以及还款记录 Payment Received）
-    if (e.category !== 'Invoice' || e.status === 'Paid') {
-      const tr = document.createElement("tr");
-      tr.className = "hover:bg-gray-50/80 cursor-pointer transition";
-      tr.onclick = () => openEditModal(e.globalIndex);
-      tr.innerHTML = `
-        <td class="py-3 px-2">${e.status === 'Paid' && e.paidDate ? e.paidDate : e.date}</td>
-        <td class="py-3 px-2 truncate max-w-[140px]" title="${e.desc}">${e.desc}</td>
-        <td class="py-3 px-2"><span class="bg-gray-100 text-gray-700 px-2 py-1 rounded text-xs font-medium">${e.category}</span></td>
-        <td class="py-3 px-2 text-right font-semibold ${e.type === 'Income' ? 'text-emerald-600' : 'text-red-600'}">
-          ${e.type === 'Income' ? '+' : '-'}RM ${parseFloat(e.amount).toFixed(2)}
-        </td>
-      `;
-      transBody.appendChild(tr);
-    }
+currentEntries.forEach(e => {
+if (e.category !== 'Invoice' || e.status === 'Paid') {
+const tr = document.createElement("tr");
+tr.className = "hover:bg-gray-50/80 cursor-pointer transition";
+tr.onclick = () => openEditModal(e.globalIndex);
+tr.innerHTML = `
+<td class="py-3 px-2">${e.status === 'Paid' && e.paidDate ? e.paidDate : e.date}</td>
+<td class="py-3 px-2 truncate max-w-[140px]" title="${e.desc}">${e.desc}</td>
+<td class="py-3 px-2"><span class="bg-gray-100 text-gray-700 px-2 py-1 rounded text-xs font-medium">${e.category}</span></td>
+<td class="py-3 px-2 text-right font-semibold ${e.type === 'Income' ? 'text-emerald-600' : 'text-red-600'}">
+${e.type === 'Income' ? '+' : '-'}RM ${parseFloat(e.amount).toFixed(2)}
+</td>
+`;
+transBody.appendChild(tr);
+}
 
-    // Invoice 列表展示
-    if (e.category === 'Invoice') {
-      invCount++;
-      const invTr = document.createElement("tr");
-      invTr.className = "hover:bg-gray-50/80 cursor-pointer transition";
-      invTr.onclick = () => openEditModal(e.globalIndex);
+if (e.category === 'Invoice') {
+invCount++;
+const invTr = document.createElement("tr");
+invTr.className = "hover:bg-gray-50/80 cursor-pointer transition";
+invTr.onclick = () => openEditModal(e.globalIndex);
 
-      const dueDate = e.dueDate || e.date;
-      const isOverdue = e.status !== 'Paid' && dueDate < todayStr;
-      if (e.status !== 'Paid') pendingCount++;
+const dueDate = e.dueDate || e.date;
+const isOverdue = e.status !== 'Paid' && dueDate < todayStr;
+if (e.status !== 'Paid') pendingCount++;
 
-      let statusHTML = '';
-      if (e.status === 'Paid') {
-        statusHTML = '<span class="px-2 py-0.5 text-xs font-semibold rounded-full bg-emerald-100 text-emerald-800">Paid</span>';
-      } else if (isOverdue) {
-        statusHTML = '<span class="px-2 py-0.5 text-xs font-semibold rounded-full bg-red-100 text-red-800">Overdue</span>';
-      } else {
-        statusHTML = '<span class="px-2 py-0.5 text-xs font-semibold rounded-full bg-amber-100 text-amber-800">Pending</span>';
-      }
+let statusHTML = '';
+if (e.status === 'Paid') {
+statusHTML = '<span class="px-2 py-0.5 text-xs font-semibold rounded-full bg-emerald-100 text-emerald-800">Paid</span>';
+} else if (isOverdue) {
+statusHTML = '<span class="px-2 py-0.5 text-xs font-semibold rounded-full bg-red-100 text-red-800">Overdue</span>';
+} else {
+statusHTML = '<span class="px-2 py-0.5 text-xs font-semibold rounded-full bg-amber-100 text-amber-800">Pending</span>';
+}
 
-      invTr.innerHTML = `
-        <td class="py-3 px-2 font-bold text-[#3b574a]">${e.invNo || 'N/A'}</td>
-        <td class="py-3 px-2">${dueDate}</td>
-        <td class="py-3 px-2">${statusHTML}</td>
-        <td class="py-3 px-2 text-right font-semibold ${e.type === 'Income' ? 'text-emerald-600' : 'text-red-600'}">
-          RM ${parseFloat(e.amount).toFixed(2)}
-        </td>
-      `;
-      invoiceBody.appendChild(invTr);
-    }
-  });
+invTr.innerHTML = `
+<td class="py-3 px-2 font-bold text-[#3b574a]">${e.invNo || 'N/A'}</td>
+<td class="py-3 px-2">${dueDate}</td>
+<td class="py-3 px-2">${statusHTML}</td>
+<td class="py-3 px-2 text-right font-semibold ${e.type === 'Income' ? 'text-emerald-600' : 'text-red-600'}">
+RM ${parseFloat(e.amount).toFixed(2)}
+</td>
+`;
+invoiceBody.appendChild(invTr);
+}
+});
 
-  document.getElementById("invoiceCount").textContent = invCount;
-  document.getElementById("pendingInvInfo").textContent = `${pendingCount} Pending Invoices`;
-  document.getElementById("transCount").textContent = `${currentEntries.length} entries (Click to edit)`;
+document.getElementById("invoiceCount").textContent = invCount;
+document.getElementById("pendingInvInfo").textContent = `${pendingCount} Pending Invoices`;
+document.getElementById("transCount").textContent = `${currentEntries.length} entries (Click to edit)`;
 
-  renderCashFlowChart(allEntries);
+renderCashFlowChart(allEntries);
 }
 
 function renderCashFlowChart(allEntries) {
-  const labels = [];
-  const incomeData = [];
-  const expenseData = [];
-  last6MonthsData = [];
+const labels = [];
+const incomeData = [];
+const expenseData = [];
+last6MonthsData = [];
 
-  for (let i = 5; i >= 0; i--) {
-    let d = new Date(selectedYear, selectedMonth - 1 - i, 1);
-    let y = d.getFullYear();
-    let m = d.getMonth() + 1;
-    let monthLabel = d.toLocaleString('en-US', { month: 'short' }) + ' ' + y;
-    labels.push(monthLabel);
+for (let i = 5; i >= 0; i--) {
+let d = new Date(selectedYear, selectedMonth - 1 - i, 1);
+let y = d.getFullYear();
+let m = d.getMonth() + 1;
+let monthLabel = d.toLocaleString('en-US', { month: 'short' }) + ' ' + y;
+labels.push(monthLabel);
 
-    let inc = 0, exp = 0;
-    allEntries.forEach(e => {
-      // 图表统计同样遵循已结清发票或部分还款记录
-      const isPaymentReceived = e.category === 'Payment Received';
-      const isNormalOrPaidInvoice = (e.category !== 'Invoice' || e.status === 'Paid');
+let inc = 0, exp = 0;
+allEntries.forEach(e => {
+const isPaymentReceived = e.category === 'Payment Received';
+const isNormalOrPaidInvoice = (e.category !== 'Invoice' || e.status === 'Paid');
 
-      if (!isPaymentReceived && !isNormalOrPaidInvoice) return;
+if (!isPaymentReceived && !isNormalOrPaidInvoice) return;
 
-      let activeDate = e.date;
-      if (isPaymentReceived) {
-        activeDate = e.date;
-      } else if (e.status === 'Paid' && e.paidDate) {
-        activeDate = e.paidDate;
-      }
+let activeDate = e.date;
+if (isPaymentReceived) {
+activeDate = e.date;
+} else if (e.status === 'Paid' && e.paidDate) {
+activeDate = e.paidDate;
+}
 
-      let ed = parseLocalDate(activeDate);
-      if (ed.getFullYear() === y && (ed.getMonth() + 1) === m) {
-        if (e.type === 'Income') inc += parseFloat(e.amount);
-        else if (e.type === 'Expense') exp += parseFloat(e.amount);
-      }
-    });
+let ed = parseLocalDate(activeDate);
+if (ed.getFullYear() === y && (ed.getMonth() + 1) === m) {
+if (e.type === 'Income') inc += parseFloat(e.amount);
+else if (e.type === 'Expense') exp += parseFloat(e.amount);
+}
+});
 
-    incomeData.push(inc);
-    expenseData.push(exp);
+incomeData.push(inc);
+expenseData.push(exp);
 
-    last6MonthsData.push({
-      year: y,
-      month: m,
-      label: monthLabel,
-      income: inc,
-      expense: exp,
-      netInflow: inc - exp
-    });
-  }
+last6MonthsData.push({
+year: y,
+month: m,
+label: monthLabel,
+income: inc,
+expense: exp,
+netInflow: inc - exp
+});
+}
 
-  const ctx = document.getElementById('cashFlowChart').getContext('2d');
-  if (myChartInstance) myChartInstance.destroy();
+const ctx = document.getElementById('cashFlowChart').getContext('2d');
+if (myChartInstance) myChartInstance.destroy();
 
-  myChartInstance = new Chart(ctx, {
-    type: 'bar',
-    data: {
-      labels: labels,
-      datasets: [
-        { label: 'Income (RM)', data: incomeData, backgroundColor: '#3b574a', borderRadius: 6 },
-        { label: 'Expense (RM)', data: expenseData, backgroundColor: '#d97706', borderRadius: 6 }
-      ]
-    },
-    options: {
-      responsive: true,
-      maintainAspectRatio: false,
-      plugins: {
-        legend: { position: 'top' },
-        tooltip: {
-          callbacks: {
-            footer: (tooltipItems) => {
-              const index = tooltipItems[0].dataIndex;
-              const net = last6MonthsData[index].netInflow;
-              return `Net Inflow: RM ${net.toFixed(2)}`;
-            }
-          }
-        }
-      },
-      onClick: (e, elements) => {
-        if (elements.length > 0) {
-          const index = elements[0].index;
-          const item = last6MonthsData[index];
-          selectedYear = item.year;
-          selectedMonth = item.month;
-          renderDashboard();
-        }
-      }
-    }
-  });
+myChartInstance = new Chart(ctx, {
+type: 'bar',
+data: {
+labels: labels,
+datasets: [
+{ label: 'Income (RM)', data: incomeData, backgroundColor: '#3b574a', borderRadius: 6 },
+{ label: 'Expense (RM)', data: expenseData, backgroundColor: '#d97706', borderRadius: 6 }
+]
+},
+options: {
+responsive: true,
+maintainAspectRatio: false,
+plugins: {
+legend: { position: 'top' },
+tooltip: {
+callbacks: {
+footer: (tooltipItems) => {
+const index = tooltipItems[0].dataIndex;
+const net = last6MonthsData[index].netInflow;
+return `Net Inflow: RM ${net.toFixed(2)}`;
+}
+}
+}
+},
+onClick: (e, elements) => {
+if (elements.length > 0) {
+const index = elements[0].index;
+const item = last6MonthsData[index];
+selectedYear = item.year;
+selectedMonth = item.month;
+renderDashboard();
+}
+}
+}
+});
 }
 
 window.openAddModal = function() {
-  document.getElementById("modalTitle").textContent = "Add New Entry";
-  document.getElementById("editIndex").value = "-1";
-  document.getElementById("saveBtn").textContent = "Save Entry";
-  document.getElementById("deleteBtn").style.display = "none";
-  document.querySelector("#entryModal form").reset();
-  const todayStr = new Date().toISOString().split('T')[0];
-  document.getElementById('entryDate').value = todayStr;
-  document.getElementById('entryDueDate').value = todayStr;
-  document.getElementById('entryStatus').value = "Pending";
+document.getElementById("modalTitle").textContent = "Add New Entry";
+document.getElementById("editIndex").value = "-1";
+document.getElementById("saveBtn").textContent = "Save Entry";
+document.getElementById("deleteBtn").style.display = "none";
+document.querySelector("#entryModal form").reset();
+const todayStr = new Date().toISOString().split('T')[0];
+document.getElementById('entryDate').value = todayStr;
+document.getElementById('entryDueDate').value = todayStr;
+document.getElementById('entryStatus').value = "Pending";
 
-  toggleInvoiceFields();
-  togglePaidDateField();
-  document.getElementById("entryModal").classList.remove("hidden");
-  document.getElementById("entryModal").classList.add("flex");
+toggleInvoiceFields();
+togglePaidDateField();
+document.getElementById("entryModal").classList.remove("hidden");
+document.getElementById("entryModal").classList.add("flex");
 }
 
 window.openEditModal = function(index) {
-  const item = allEntries[index];
-  if (!item) return;
+const item = allEntries[index];
+if (!item) return;
 
-  document.getElementById("modalTitle").textContent = "Edit Entry";
-  document.getElementById("editIndex").value = index;
-  document.getElementById("entryType").value = item.type;
-  document.getElementById("entryCategory").value = item.category;
-  document.getElementById("entryInvNo").value = item.invNo || "";
-  document.getElementById("entryDesc").value = item.desc;
-  document.getElementById("entryAmount").value = item.amount;
-  document.getElementById("entryDate").value = item.date;
-  document.getElementById("entryDueDate").value = item.dueDate || item.date;
-  document.getElementById("entryStatus").value = item.status || "Paid";
-  document.getElementById("entryPaidDate").value = item.paidDate || item.date;
+document.getElementById("modalTitle").textContent = "Edit Entry";
+document.getElementById("editIndex").value = index;
+document.getElementById("entryType").value = item.type;
+document.getElementById("entryCategory").value = item.category;
+document.getElementById("entryInvNo").value = item.invNo || "";
+document.getElementById("entryDesc").value = item.desc;
+document.getElementById("entryAmount").value = item.amount;
+document.getElementById("entryDate").value = item.date;
+document.getElementById("entryDueDate").value = item.dueDate || item.date;
+document.getElementById("entryStatus").value = item.status || "Paid";
+document.getElementById("entryPaidDate").value = item.paidDate || item.date;
 
-  toggleInvoiceFields();
-  togglePaidDateField();
+toggleInvoiceFields();
+togglePaidDateField();
 
-  document.getElementById("saveBtn").textContent = "Update Entry";
-  document.getElementById("deleteBtn").style.display = "block";
-  document.getElementById("entryModal").classList.remove("hidden");
-  document.getElementById("entryModal").classList.add("flex");
+document.getElementById("saveBtn").textContent = "Update Entry";
+document.getElementById("deleteBtn").style.display = "block";
+document.getElementById("entryModal").classList.remove("hidden");
+document.getElementById("entryModal").classList.add("flex");
 }
 
 window.saveEntry = async function(event) {
-  event.preventDefault();
-  const editIndex = parseInt(document.getElementById("editIndex").value);
-  const category = document.getElementById("entryCategory").value;
-  const invNo = document.getElementById("entryInvNo").value.trim();
+event.preventDefault();
+const editIndex = parseInt(document.getElementById("editIndex").value);
+const category = document.getElementById("entryCategory").value;
+const invNo = document.getElementById("entryInvNo").value.trim();
 
-  if (category === "Invoice" && !invNo) {
-    alert("Please enter the Invoice Number!");
-    return;
-  }
+if (category === "Invoice" && !invNo) {
+alert("Please enter the Invoice Number!");
+return;
+}
 
-  const currentUser = auth.currentUser;
-  if (!currentUser) {
-    alert("Please login first!");
-    return;
-  }
+const currentUser = auth.currentUser;
+if (!currentUser) {
+alert("Please login first!");
+return;
+}
 
-  const existingItem = editIndex !== -1 ? allEntries[editIndex] : {};
-  const invoiceId = existingItem.invoiceId || Date.now();
+const existingItem = editIndex !== -1 ? allEntries[editIndex] : {};
+const invoiceId = existingItem.invoiceId || Date.now();
 
-  const entryData = {
-    userId: currentUser.uid,
-    id: existingItem.id || Date.now(),
-    title: document.getElementById("entryDesc").value,
-    type: document.getElementById("entryType").value,
-    category: category,
-    invNo: invNo,
-    desc: document.getElementById("entryDesc").value,
-    amount: parseFloat(document.getElementById("entryAmount").value),
-    date: document.getElementById("entryDate").value,
-    dueDate: document.getElementById("entryDueDate").value || document.getElementById("entryDate").value,
-    status: document.getElementById("entryStatus").value,
-    paidDate: document.getElementById("entryStatus").value === "Paid" ? document.getElementById("entryPaidDate").value : "",
-    invoiceId: invoiceId
-  };
+const entryData = {
+userId: currentUser.uid,
+id: existingItem.id || Date.now(),
+title: document.getElementById("entryDesc").value,
+type: document.getElementById("entryType").value,
+category: category,
+invNo: invNo,
+desc: document.getElementById("entryDesc").value,
+amount: parseFloat(document.getElementById("entryAmount").value),
+date: document.getElementById("entryDate").value,
+dueDate: document.getElementById("entryDueDate").value || document.getElementById("entryDate").value,
+status: document.getElementById("entryStatus").value,
+paidDate: document.getElementById("entryStatus").value === "Paid" ? document.getElementById("entryPaidDate").value : "",
+invoiceId: invoiceId
+};
 
-  try {
-    if (editIndex === -1) {
-      const docRef = await addDoc(collection(db, "transactions"), entryData);
-      entryData.firestoreId = docRef.id;
-      allEntries.push(entryData);
-    } else {
-      const target = allEntries[editIndex];
-      if (target && target.firestoreId) {
-        const docRef = doc(db, "transactions", target.firestoreId);
-        await updateDoc(docRef, entryData);
-      }
-      allEntries[editIndex] = entryData;
-    }
+try {
+if (editIndex === -1) {
+await addDoc(collection(db, "transactions"), entryData);
+} else {
+const target = allEntries[editIndex];
+if (target && target.firestoreId) {
+const docRef = doc(db, "transactions", target.firestoreId);
+await updateDoc(docRef, entryData);
+}
+}
 
-    localStorage.setItem("wispendEntries", JSON.stringify(allEntries));
-    closeModal();
-    renderDashboard();
-    alert(editIndex === -1 ? "New entry added and synced to cloud!" : "Entry updated successfully!");
-  } catch (e) {
-    console.error("Error saving entry:", e);
-    alert("Failed to save to cloud. Please check your internet connection.");
-  }
+closeModal();
+// 数据写入云端后，onSnapshot 会自动捕捉并刷新，无需手动调用 renderDashboard
+alert(editIndex === -1 ? "New entry added and synced to cloud!" : "Entry updated successfully!");
+} catch (e) {
+console.error("Error saving entry:", e);
+alert("Failed to save to cloud. Please check your internet connection.");
+}
 }
 
 window.deleteEntry = async function() {
-  const editIndex = parseInt(document.getElementById("editIndex").value);
-  if (editIndex === -1) return;
+const editIndex = parseInt(document.getElementById("editIndex").value);
+if (editIndex === -1) return;
 
-  const reason = prompt("Please enter the reason for deletion:");
-  if (reason === null) return;
+const reason = prompt("Please enter the reason for deletion:");
+if (reason === null) return;
 
-  const target = allEntries[editIndex];
+const target = allEntries[editIndex];
 
-  try {
-    if (target && target.firestoreId) {
-      await deleteDoc(doc(db, "transactions", target.firestoreId));
-    }
+try {
+if (target && target.firestoreId) {
+await deleteDoc(doc(db, "transactions", target.firestoreId));
+}
 
-    allEntries.splice(editIndex, 1);
-    localStorage.setItem("wispendEntries", JSON.stringify(allEntries));
-
-    closeModal();
-    renderDashboard();
-    alert("Entry deleted successfully from cloud.");
-  } catch (e) {
-    console.error("Error deleting entry:", e);
-    alert("Failed to delete from cloud.");
-  }
+closeModal();
+// 云端删除后，onSnapshot 会自动捕捉变化并刷新 History 和 Dashboard 页面
+alert("Entry deleted successfully from cloud.");
+} catch (e) {
+console.error("Error deleting entry:", e);
+alert("Failed to delete from cloud.");
+}
 }
 
 window.closeModal = function() {
-  document.getElementById("entryModal").classList.add("hidden");
-  document.getElementById("entryModal").classList.remove("flex");
+document.getElementById("entryModal").classList.add("hidden");
+document.getElementById("entryModal").classList.remove("flex");
 }
 </script>
 
