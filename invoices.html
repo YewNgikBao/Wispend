@@ -7,10 +7,8 @@
 
 <!-- 关联清单 -->
 <link rel="manifest" href="manifest.json">
-
 <!-- 针对苹果 iOS 设备的专用图标支持 -->
 <link rel="apple-touch-icon" sizes="180x180" href="https://lh3.google.com/u/0/d/1-WvkMpo2mSk6F3rouTRuoMFT7JAh5e9M">
-
 <!-- 手机端全屏及主题色配置 -->
 <meta name="apple-mobile-web-app-capable" content="yes">
 <meta name="apple-mobile-web-app-status-bar-style" content="black-translucent">
@@ -36,172 +34,189 @@ body { background-color: #f7f6f2; font-family: -apple-system, BlinkMacSystemFont
 
 <body class="flex h-screen overflow-hidden text-gray-800">
 
-<!-- 侧边栏 Sidebar -->
-<aside class="w-64 bg-[#f2f0e9] border-r border-gray-200 flex flex-col justify-between p-6 shrink-0 h-screen sticky top-0">
-<div>
-<!-- Profile 用户信息 -->
-<a href="profile.html" class="flex items-center space-x-3 mb-6 p-2 rounded-xl bg-[#e3ebe3]/60 hover:bg-[#e3ebe3] transition border border-gray-200/60" title="View Profile">
-<div id="userAvatar" class="w-9 h-9 rounded-full bg-[#3b574a] text-white flex items-center justify-center font-bold text-base shrink-0 overflow-hidden">U</div>
-<div class="overflow-hidden">
-<h2 id="userNameDisplay" class="font-bold text-gray-900 text-sm truncate">User Name</h2>
-<p class="text-xs text-gray-500">View Profile</p>
-</div>
-</a>
+<!-- 手机端半透明遮罩 (点击可关闭侧边栏) -->
+<div id="sidebarOverlay" onclick="toggleSidebar()" class="fixed inset-0 bg-black/40 z-40 hidden lg:hidden transition-opacity"></div>
 
-<!-- 导航菜单 -->
-<nav class="space-y-1">
-<p class="text-xs font-semibold text-gray-400 uppercase tracking-wider mb-2">WORKSPACE</p>
-<a href="dashboard.html" class="flex items-center px-3 py-2 text-sm font-medium text-gray-600 rounded-lg hover:bg-gray-200/60 transition">Dashboard</a>
-<a href="transactions.html" class="flex items-center px-3 py-2 text-sm font-medium text-gray-600 rounded-lg hover:bg-gray-200/60 transition">Transactions</a>
-<a href="invoices.html" class="flex items-center px-3 py-2 text-sm font-semibold text-[#2c4338] bg-[#e3ebe3] rounded-lg">Invoices</a>
-<a href="reports.html" class="flex items-center px-3 py-2 text-sm font-medium text-gray-600 rounded-lg hover:bg-gray-200/60 transition">Reports</a>
-<a href="history.html" class="flex items-center px-3 py-2 text-sm font-medium text-gray-600 rounded-lg hover:bg-gray-200/60 transition">History</a>
-</nav>
+<!-- 左侧 Sidebar（手机端抽屉式隐藏，电脑端固定） -->
+<aside id="sidebar" class="fixed lg:static inset-y-0 left-0 z-50 w-64 bg-[#f2f0e9] border-r border-gray-200 flex flex-col justify-between p-6 shrink-0 h-screen -translate-x-full lg:translate-x-0 transition-transform duration-300 ease-in-out">
+<div>
+  <!-- 手机端侧边栏内部的关闭按钮 -->
+  <div class="flex justify-between items-center mb-6 lg:hidden">
+    <span class="font-bold text-gray-800 text-sm">Menu</span>
+    <button onclick="toggleSidebar()" class="text-gray-500 hover:text-gray-800 text-xl font-bold p-1">×</button>
+  </div>
+
+  <!-- Profile 用户信息 -->
+  <a href="profile.html" class="flex items-center space-x-3 mb-6 p-2 rounded-xl bg-[#e3ebe3]/60 hover:bg-[#e3ebe3] transition border border-gray-200/60" title="View Profile">
+    <div id="userAvatar" class="w-9 h-9 rounded-full bg-[#3b574a] text-white flex items-center justify-center font-bold text-base shrink-0 overflow-hidden">U</div>
+    <div class="overflow-hidden">
+      <h2 id="userNameDisplay" class="font-bold text-gray-900 text-sm truncate">User Name</h2>
+      <p class="text-xs text-gray-500">View Profile</p>
+    </div>
+  </a>
+
+  <!-- 导航菜单 -->
+  <nav class="space-y-1">
+    <p class="text-xs font-semibold text-gray-400 uppercase tracking-wider mb-2">WORKSPACE</p>
+    <a href="dashboard.html" class="flex items-center px-3 py-2 text-sm font-medium text-gray-600 rounded-lg hover:bg-gray-200/60 transition">Dashboard</a>
+    <a href="transactions.html" class="flex items-center px-3 py-2 text-sm font-medium text-gray-600 rounded-lg hover:bg-gray-200/60 transition">Transactions</a>
+    <a href="invoices.html" class="flex items-center px-3 py-2 text-sm font-semibold text-[#2c4338] bg-[#e3ebe3] rounded-lg">Invoices</a>
+    <a href="reports.html" class="flex items-center px-3 py-2 text-sm font-medium text-gray-600 rounded-lg hover:bg-gray-200/60 transition">Reports</a>
+    <a href="history.html" class="flex items-center px-3 py-2 text-sm font-medium text-gray-600 rounded-lg hover:bg-gray-200/60 transition">History</a>
+  </nav>
 </div>
 
 <!-- 左下角 Logo -->
 <div class="pt-4 border-t border-gray-200 flex items-center space-x-3">
-<img src="https://lh3.google.com/u/0/d/1-WvkMpo2mSk6F3rouTRuoMFT7JAh5e9M" alt="Logo" class="w-9 h-9 rounded-xl object-cover shrink-0 shadow-sm">
-<div>
-<h1 class="font-bold text-gray-900 text-sm leading-tight">WISPEND</h1>
-<p class="text-xs text-gray-500">Financial Ledger</p>
-</div>
+  <img src="https://lh3.google.com/u/0/d/1-WvkMpo2mSk6F3rouTRuoMFT7JAh5e9M" alt="Logo" class="w-9 h-9 rounded-xl object-cover shrink-0 shadow-sm">
+  <div>
+    <h1 class="font-bold text-gray-900 text-sm leading-tight">WISPEND</h1>
+    <p class="text-xs text-gray-500">Financial Ledger</p>
+  </div>
 </div>
 </aside>
 
 <!-- 主内容区 Main Content -->
-<main class="flex-1 overflow-y-auto p-8">
-<div class="flex justify-between items-center mb-6">
-<div>
-<div class="flex items-center gap-3">
-<h2 class="text-3xl font-serif text-gray-900">Invoices</h2>
-<select id="yearFilter" onchange="renderApp()" class="bg-white border border-gray-300 text-gray-700 font-semibold py-1 px-3 rounded-lg text-sm shadow-sm focus:outline-none focus:ring-2 focus:ring-[#3b574a]">
-<option value="ALL">All Years</option>
-</select>
-</div>
-<p id="subHeaderStats" class="text-sm text-gray-500 mt-1">0 total • RM 0.00 outstanding</p>
-</div>
+<main class="flex-1 overflow-y-auto p-4 sm:p-8">
+<div class="flex justify-between items-center mb-6 flex-wrap gap-4">
+  <div class="flex items-center gap-3">
+    <!-- 手机端“三条线”汉堡菜单按钮 -->
+    <button onclick="toggleSidebar()" class="lg:hidden p-2 rounded-lg bg-white border border-gray-200 text-gray-600 hover:bg-gray-100 shadow-sm">
+      <svg class="w-6 h-6" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+        <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M4 6h16M4 12h16M4 18h16"></path>
+      </svg>
+    </button>
+    <div>
+      <div class="flex items-center gap-3 flex-wrap">
+        <h2 class="text-2xl sm:text-3xl font-serif text-gray-900">Invoices</h2>
+        <select id="yearFilter" onchange="renderApp()" class="bg-white border border-gray-300 text-gray-700 font-semibold py-1 px-3 rounded-lg text-sm shadow-sm focus:outline-none focus:ring-2 focus:ring-[#3b574a]">
+          <option value="ALL">All Years</option>
+        </select>
+      </div>
+      <p id="subHeaderStats" class="text-sm text-gray-500 mt-1">0 total • RM 0.00 outstanding</p>
+    </div>
+  </div>
 
-<button onclick="openNewInvoiceModal()" class="bg-[#3b574a] hover:bg-[#2c4338] text-white px-4 py-2 rounded-lg font-medium text-sm transition shadow-sm flex items-center gap-2">
-<span>+</span> New invoice
-</button>
+  <button onclick="openNewInvoiceModal()" class="bg-[#3b574a] hover:bg-[#2c4338] text-white px-4 py-2 rounded-lg font-medium text-sm transition shadow-sm flex items-center gap-2">
+    <span>+</span> New invoice
+  </button>
 </div>
 
 <!-- 统计卡片区 -->
-<div class="grid grid-cols-3 gap-5 mb-6">
-<div class="bg-white p-5 rounded-2xl border border-gray-100 shadow-sm">
-<p class="text-xs font-medium text-gray-500 mb-1">Outstanding</p>
-<h3 id="cardOutstandingAmount" class="text-2xl font-serif text-gray-900">RM 0.00</h3>
-<p class="text-xs text-gray-400 mt-1">Pending + overdue</p>
-</div>
-<div class="bg-white p-5 rounded-2xl border border-gray-100 shadow-sm">
-<p class="text-xs font-medium text-gray-500 mb-1">Overdue</p>
-<h3 id="cardOverdueCount" class="text-2xl font-serif text-amber-700">0</h3>
-<p class="text-xs text-gray-400 mt-1">Needs attention</p>
-</div>
-<div class="bg-white p-5 rounded-2xl border border-gray-100 shadow-sm">
-<p class="text-xs font-medium text-gray-500 mb-1">Paid</p>
-<h3 id="cardPaidAmount" class="text-2xl font-serif text-gray-900">RM 0.00</h3>
-<p id="cardPaidCount" class="text-xs text-gray-400 mt-1">0 invoices</p>
-</div>
+<div class="grid grid-cols-1 sm:grid-cols-3 gap-4 sm:gap-5 mb-6">
+  <div class="bg-white p-5 rounded-2xl border border-gray-100 shadow-sm">
+    <p class="text-xs font-medium text-gray-500 mb-1">Outstanding</p>
+    <h3 id="cardOutstandingAmount" class="text-2xl font-serif text-gray-900">RM 0.00</h3>
+    <p class="text-xs text-gray-400 mt-1">Pending + overdue</p>
+  </div>
+  <div class="bg-white p-5 rounded-2xl border border-gray-100 shadow-sm">
+    <p class="text-xs font-medium text-gray-500 mb-1">Overdue</p>
+    <h3 id="cardOverdueCount" class="text-2xl font-serif text-amber-700">0</h3>
+    <p class="text-xs text-gray-400 mt-1">Needs attention</p>
+  </div>
+  <div class="bg-white p-5 rounded-2xl border border-gray-100 shadow-sm">
+    <p class="text-xs font-medium text-gray-500 mb-1">Paid</p>
+    <h3 id="cardPaidAmount" class="text-2xl font-serif text-gray-900">RM 0.00</h3>
+    <p id="cardPaidCount" class="text-xs text-gray-400 mt-1">0 invoices</p>
+  </div>
 </div>
 
 <!-- 列表及筛选 tab -->
-<div class="bg-white rounded-2xl border border-gray-100 shadow-sm p-6">
-<div class="flex space-x-2 border-b border-gray-100 pb-4 mb-4">
-<button onclick="setTab('all')" id="tab-all" class="px-4 py-1.5 text-xs font-medium rounded-full bg-gray-200 text-gray-800">All</button>
-<button onclick="setTab('Pending')" id="tab-pending" class="px-4 py-1.5 text-xs font-medium rounded-full text-gray-500 hover:bg-gray-100">Pending</button>
-<button onclick="setTab('overdue')" id="tab-overdue" class="px-4 py-1.5 text-xs font-medium rounded-full text-gray-500 hover:bg-gray-100">Overdue</button>
-<button onclick="setTab('Paid')" id="tab-paid" class="px-4 py-1.5 text-xs font-medium rounded-full text-gray-500 hover:bg-gray-100">Paid</button>
-</div>
+<div class="bg-white rounded-2xl border border-gray-100 shadow-sm p-4 sm:p-6">
+  <div class="flex space-x-2 border-b border-gray-100 pb-4 mb-4 overflow-x-auto">
+    <button onclick="setTab('all')" id="tab-all" class="px-4 py-1.5 text-xs font-medium rounded-full bg-gray-200 text-gray-800 shrink-0">All</button>
+    <button onclick="setTab('Pending')" id="tab-pending" class="px-4 py-1.5 text-xs font-medium rounded-full text-gray-500 hover:bg-gray-100 shrink-0">Pending</button>
+    <button onclick="setTab('overdue')" id="tab-overdue" class="px-4 py-1.5 text-xs font-medium rounded-full text-gray-500 hover:bg-gray-100 shrink-0">Overdue</button>
+    <button onclick="setTab('Paid')" id="tab-paid" class="px-4 py-1.5 text-xs font-medium rounded-full text-gray-500 hover:bg-gray-100 shrink-0">Paid</button>
+  </div>
 
-<div id="invoiceList" class="divide-y divide-gray-100"></div>
+  <div id="invoiceList" class="divide-y divide-gray-100"></div>
 </div>
 </main>
 
 <!-- 新建/编辑 Invoice Modal -->
-<div id="newInvoiceModal" class="fixed inset-0 bg-black/40 hidden items-center justify-center z-50">
-<div class="bg-white rounded-2xl p-6 w-full max-w-md shadow-xl">
-<h3 id="invoiceModalTitle" class="text-lg font-bold text-gray-900 mb-4">Create New Invoice</h3>
-<form id="newInvoiceForm" onsubmit="handleCreateOrUpdateInvoice(event)" class="space-y-4">
-<input type="hidden" id="editInvoiceFirestoreId" value="">
-<div>
-<label class="block text-xs font-medium text-gray-600 mb-1">Invoice Number</label>
-<input type="text" id="invNumber" placeholder="e.g. #1045" required class="w-full border border-gray-300 rounded-lg p-2 text-sm focus:outline-none focus:ring-2 focus:ring-[#3b574a]">
-</div>
-<div>
-<label class="block text-xs font-medium text-gray-600 mb-1">Company / Client</label>
-<input type="text" id="invCompany" placeholder="e.g. Acme Corp" required class="w-full border border-gray-300 rounded-lg p-2 text-sm focus:outline-none focus:ring-2 focus:ring-[#3b574a]">
-</div>
-<div>
-<label class="block text-xs font-medium text-gray-600 mb-1">Amount (RM)</label>
-<input type="number" step="0.01" id="invAmount" placeholder="0.00" required class="w-full border border-gray-300 rounded-lg p-2 text-sm focus:outline-none focus:ring-2 focus:ring-[#3b574a]">
-</div>
-<div>
-<label class="block text-xs font-medium text-gray-600 mb-1">Due Date</label>
-<input type="date" id="invDueDate" required class="w-full border border-gray-300 rounded-lg p-2 text-sm focus:outline-none focus:ring-2 focus:ring-[#3b574a]">
-</div>
-<div class="flex justify-end gap-2 pt-2">
-<button type="button" onclick="closeNewInvoiceModal()" class="px-4 py-2 text-sm font-medium text-gray-600 hover:bg-gray-100 rounded-lg">Cancel</button>
-<button type="submit" id="invoiceSubmitBtn" class="px-4 py-2 text-sm font-medium bg-[#3b574a] text-white rounded-lg hover:bg-[#2c4338]">Save Invoice</button>
-</div>
-</form>
-</div>
+<div id="newInvoiceModal" class="fixed inset-0 bg-black/40 hidden items-center justify-center z-50 p-4">
+  <div class="bg-white rounded-2xl p-6 w-full max-w-md shadow-xl">
+    <h3 id="invoiceModalTitle" class="text-lg font-bold text-gray-900 mb-4">Create New Invoice</h3>
+    <form id="newInvoiceForm" onsubmit="handleCreateOrUpdateInvoice(event)" class="space-y-4">
+      <input type="hidden" id="editInvoiceFirestoreId" value="">
+      <div>
+        <label class="block text-xs font-medium text-gray-600 mb-1">Invoice Number</label>
+        <input type="text" id="invNumber" placeholder="e.g. #1045" required class="w-full border border-gray-300 rounded-lg p-2 text-sm focus:outline-none focus:ring-2 focus:ring-[#3b574a]">
+      </div>
+      <div>
+        <label class="block text-xs font-medium text-gray-600 mb-1">Company / Client</label>
+        <input type="text" id="invCompany" placeholder="e.g. Acme Corp" required class="w-full border border-gray-300 rounded-lg p-2 text-sm focus:outline-none focus:ring-2 focus:ring-[#3b574a]">
+      </div>
+      <div>
+        <label class="block text-xs font-medium text-gray-600 mb-1">Amount (RM)</label>
+        <input type="number" step="0.01" id="invAmount" placeholder="0.00" required class="w-full border border-gray-300 rounded-lg p-2 text-sm focus:outline-none focus:ring-2 focus:ring-[#3b574a]">
+      </div>
+      <div>
+        <label class="block text-xs font-medium text-gray-600 mb-1">Due Date</label>
+        <input type="date" id="invDueDate" required class="w-full border border-gray-300 rounded-lg p-2 text-sm focus:outline-none focus:ring-2 focus:ring-[#3b574a]">
+      </div>
+      <div class="flex justify-end gap-2 pt-2">
+        <button type="button" onclick="closeNewInvoiceModal()" class="px-4 py-2 text-sm font-medium text-gray-600 hover:bg-gray-100 rounded-lg">Cancel</button>
+        <button type="submit" id="invoiceSubmitBtn" class="px-4 py-2 text-sm font-medium bg-[#3b574a] text-white rounded-lg hover:bg-[#2c4338]">Save Invoice</button>
+      </div>
+    </form>
+  </div>
 </div>
 
 <!-- 还款记录与详情 Modal -->
-<div id="paymentModal" class="fixed inset-0 bg-black/40 hidden items-center justify-center z-50">
-<div class="bg-white rounded-2xl p-6 w-full max-w-lg shadow-xl">
-<div class="flex justify-between items-start border-b border-gray-100 pb-3 mb-4">
-<div>
-<h3 id="modalInvTitle" class="text-lg font-bold text-gray-900">Invoice Details</h3>
-<p id="modalInvSub" class="text-xs text-gray-500"></p>
-</div>
-<button onclick="closePaymentModal()" class="text-gray-400 hover:text-gray-600 text-lg">✕</button>
-</div>
+<div id="paymentModal" class="fixed inset-0 bg-black/40 hidden items-center justify-center z-50 p-4">
+  <div class="bg-white rounded-2xl p-6 w-full max-w-lg shadow-xl">
+    <div class="flex justify-between items-start border-b border-gray-100 pb-3 mb-4">
+      <div>
+        <h3 id="modalInvTitle" class="text-lg font-bold text-gray-900">Invoice Details</h3>
+        <p id="modalInvSub" class="text-xs text-gray-500"></p>
+      </div>
+      <button onclick="closePaymentModal()" class="text-gray-400 hover:text-gray-600 text-lg">✕</button>
+    </div>
 
-<div class="grid grid-cols-3 gap-3 bg-gray-50 p-3 rounded-xl mb-4 text-center">
-<div>
-<p class="text-[10px] uppercase font-bold text-gray-400">Total</p>
-<p id="modalTotalAmount" class="text-sm font-semibold text-gray-800">RM 0.00</p>
-</div>
-<div>
-<p class="text-[10px] uppercase font-bold text-gray-400">Paid So Far</p>
-<p id="modalPaidAmount" class="text-sm font-semibold text-emerald-600">RM 0.00</p>
-</div>
-<div>
-<p class="text-[10px] uppercase font-bold text-gray-400">Remaining Balance</p>
-<p id="modalBalanceAmount" class="text-sm font-semibold text-amber-700">RM 0.00</p>
-</div>
-</div>
+    <div class="grid grid-cols-3 gap-3 bg-gray-50 p-3 rounded-xl mb-4 text-center">
+      <div>
+        <p class="text-[10px] uppercase font-bold text-gray-400">Total</p>
+        <p id="modalTotalAmount" class="text-sm font-semibold text-gray-800">RM 0.00</p>
+      </div>
+      <div>
+        <p class="text-[10px] uppercase font-bold text-gray-400">Paid So Far</p>
+        <p id="modalPaidAmount" class="text-sm font-semibold text-emerald-600">RM 0.00</p>
+      </div>
+      <div>
+        <p class="text-[10px] uppercase font-bold text-gray-400">Remaining Balance</p>
+        <p id="modalBalanceAmount" class="text-sm font-semibold text-amber-700">RM 0.00</p>
+      </div>
+    </div>
 
-<!-- 还款输入框 -->
-<div id="addPaymentBox" class="border border-dashed border-gray-300 p-3 rounded-xl mb-4">
-<p class="text-xs font-semibold text-gray-700 mb-2">Record New Payment</p>
-<div class="grid grid-cols-2 gap-2 mb-2">
-<input type="date" id="payDate" class="border border-gray-300 rounded-lg p-1.5 text-xs focus:outline-none focus:ring-1 focus:ring-[#3b574a]">
-<input type="number" step="0.01" id="payAmount" placeholder="Payment Amount (RM)" class="border border-gray-300 rounded-lg p-1.5 text-xs focus:outline-none focus:ring-1 focus:ring-[#3b574a]">
-</div>
-<button onclick="handleAddPayment()" class="w-full bg-[#3b574a] hover:bg-[#2c4338] text-white text-xs font-medium py-1.5 rounded-lg transition">
-+ Add Payment
-</button>
-</div>
+    <!-- 还款输入框 -->
+    <div id="addPaymentBox" class="border border-dashed border-gray-300 p-3 rounded-xl mb-4">
+      <p class="text-xs font-semibold text-gray-700 mb-2">Record New Payment</p>
+      <div class="grid grid-cols-1 sm:grid-cols-2 gap-2 mb-2">
+        <input type="date" id="payDate" class="border border-gray-300 rounded-lg p-1.5 text-xs focus:outline-none focus:ring-1 focus:ring-[#3b574a]">
+        <input type="number" step="0.01" id="payAmount" placeholder="Payment Amount (RM)" class="border border-gray-300 rounded-lg p-1.5 text-xs focus:outline-none focus:ring-1 focus:ring-[#3b574a]">
+      </div>
+      <button onclick="handleAddPayment()" class="w-full bg-[#3b574a] hover:bg-[#2c4338] text-white text-xs font-medium py-1.5 rounded-lg transition">
+        + Add Payment
+      </button>
+    </div>
 
-<!-- 历史还款记录 -->
-<div class="mb-5">
-<p class="text-xs font-semibold text-gray-700 mb-2">Payment History</p>
-<div id="paymentHistoryList" class="max-h-36 overflow-y-auto space-y-1.5 pr-1"></div>
-</div>
+    <!-- 历史还款记录 -->
+    <div class="mb-5">
+      <p class="text-xs font-semibold text-gray-700 mb-2">Payment History</p>
+      <div id="paymentHistoryList" class="max-h-36 overflow-y-auto space-y-1.5 pr-1"></div>
+    </div>
 
-<div class="pt-3 border-t border-gray-100 flex justify-between items-center">
-<button onclick="openEditInvoiceModalFromDetail()" class="bg-gray-100 hover:bg-gray-200 text-gray-700 px-3 py-1.5 rounded-lg text-xs font-semibold transition">
-✏️ Edit Invoice
-</button>
-<button onclick="handleDeleteInvoice()" class="bg-red-50 hover:bg-red-100 text-red-600 border border-red-200 px-3 py-1.5 rounded-lg text-xs font-semibold transition">
-🗑 Delete Invoice
-</button>
-</div>
-</div>
+    <div class="pt-3 border-t border-gray-100 flex justify-between items-center">
+      <button onclick="openEditInvoiceModalFromDetail()" class="bg-gray-100 hover:bg-gray-200 text-gray-700 px-3 py-1.5 rounded-lg text-xs font-semibold transition">
+        ✏️ Edit Invoice
+      </button>
+      <button onclick="handleDeleteInvoice()" class="bg-red-50 hover:bg-red-100 text-red-600 border border-red-200 px-3 py-1.5 rounded-lg text-xs font-semibold transition">
+        🗑 Delete Invoice
+      </button>
+    </div>
+  </div>
 </div>
 
 <!-- Firebase 脚本引入与实时同步逻辑 -->
@@ -252,6 +267,19 @@ window.onload = function() {
   });
 };
 
+// 控制手机端侧边栏的展开与折叠
+window.toggleSidebar = function() {
+  const sidebar = document.getElementById("sidebar");
+  const overlay = document.getElementById("sidebarOverlay");
+  if (sidebar.classList.contains("-translate-x-full")) {
+    sidebar.classList.remove("-translate-x-full");
+    overlay.classList.remove("hidden");
+  } else {
+    sidebar.classList.add("-translate-x-full");
+    overlay.classList.add("hidden");
+  }
+}
+
 function loadUserData(user) {
   const currentUser = JSON.parse(localStorage.getItem("wispendCurrentUser"));
   const userName = currentUser ? currentUser.name : user.email.split('@')[0];
@@ -288,7 +316,6 @@ function getInvoiceDetails(inv) {
   const paidSoFar = (inv.payments || []).reduce((sum, p) => sum + Number(p.amount), 0);
   const balance = Math.max(0, Number(inv.amount) - paidSoFar);
   let status = inv.status || 'Pending';
-  
   if (balance <= 0) {
     status = 'Paid';
   } else {
@@ -382,7 +409,7 @@ window.renderApp = function() {
     }
 
     const item = document.createElement('div');
-    item.className = 'py-4 flex justify-between items-center hover:bg-gray-50/80 px-2 rounded-lg cursor-pointer transition';
+    item.className = 'py-4 flex flex-col sm:flex-row justify-between sm:items-center hover:bg-gray-50/80 px-2 rounded-lg cursor-pointer transition gap-2';
     item.onclick = () => openPaymentModal(inv.firestoreId);
 
     const invNum = inv.invNo || inv.number || 'N/A';
@@ -393,7 +420,7 @@ window.renderApp = function() {
         <h4 class="font-semibold text-gray-900 text-sm">Invoice ${invNum} • ${company}</h4>
         <p class="text-xs text-gray-400 mt-0.5">Due ${dateStr} ${paidSoFar > 0 && status !== 'Paid' ? `• Paid: RM ${paidSoFar.toFixed(2)} (Bal: RM${balance.toFixed(2)})` : ''}</p>
       </div>
-      <div class="flex items-center gap-4">
+      <div class="flex items-center justify-between sm:justify-end gap-4">
         <span class="font-semibold text-sm text-gray-900">RM ${Number(inv.amount).toLocaleString('en-US', {minimumFractionDigits: 2})}</span>
         <span class="px-2.5 py-1 text-xs font-medium rounded-full ${badgeClass}">${statusText}</span>
       </div>
@@ -408,8 +435,8 @@ window.setTab = function(tab) {
     const btn = document.getElementById(`tab-${t}`);
     if (!btn) return;
     btn.className = t === tab.toLowerCase()
-      ? 'px-4 py-1.5 text-xs font-medium rounded-full bg-gray-200 text-gray-800' 
-      : 'px-4 py-1.5 text-xs font-medium rounded-full text-gray-500 hover:bg-gray-100';
+      ? 'px-4 py-1.5 text-xs font-medium rounded-full bg-gray-200 text-gray-800 shrink-0' 
+      : 'px-4 py-1.5 text-xs font-medium rounded-full text-gray-500 hover:bg-gray-100 shrink-0';
   });
   renderApp();
 };
@@ -596,14 +623,12 @@ window.handleAddPayment = async function() {
   const newStatus = newPaidSoFar >= Number(inv.amount) ? 'Paid' : 'Pending';
 
   try {
-    // 1. 更新当前发票自身的还款进度和状态
     await updateDoc(doc(db, "transactions", inv.firestoreId), {
       payments: updatedPayments,
       status: newStatus,
       paidDate: newStatus === 'Paid' ? date : (inv.paidDate || '')
     });
 
-    // 2. 同时在 transactions 中单独新增一条“收款入账”记录，使 Dashboard、Transactions、Reports 实时增加该笔金额
     const invNum = inv.invNo || inv.number || 'N/A';
     const companyName = inv.company || 'Client';
     await addDoc(collection(db, "transactions"), {

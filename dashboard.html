@@ -7,10 +7,8 @@
 
 <!-- 关联清单 -->
 <link rel="manifest" href="manifest.json">
-
 <!-- 针对苹果 iOS 设备的专用图标支持 -->
 <link rel="apple-touch-icon" sizes="180x180" href="https://lh3.google.com/u/0/d/1-WvkMpo2mSk6F3rouTRuoMFT7JAh5e9M">
-
 <!-- 手机端全屏及主题色配置 -->
 <meta name="apple-mobile-web-app-capable" content="yes">
 <meta name="apple-mobile-web-app-status-bar-style" content="black-translucent">
@@ -39,9 +37,18 @@ body { background-color: #f7f6f2; font-family: -apple-system, BlinkMacSystemFont
 
 <body class="flex h-screen overflow-hidden text-gray-800">
 
+<!-- 手机端半透明遮罩 (点击可关闭侧边栏) -->
+<div id="sidebarOverlay" onclick="toggleSidebar()" class="fixed inset-0 bg-black/40 z-40 hidden lg:hidden transition-opacity"></div>
+
 <!-- 侧边栏 Sidebar -->
-<aside class="w-64 bg-[#f2f0e9] border-r border-gray-200 flex flex-col justify-between p-6 shrink-0 h-screen sticky top-0">
+<aside id="sidebar" class="fixed lg:static inset-y-0 left-0 z-50 w-64 bg-[#f2f0e9] border-r border-gray-200 flex flex-col justify-between p-6 shrink-0 h-screen -translate-x-full lg:translate-x-0 transition-transform duration-300 ease-in-out">
 <div>
+  <!-- 关闭按钮（仅在手机端侧边栏内部显示） -->
+  <div class="flex justify-between items-center mb-6 lg:hidden">
+    <span class="font-bold text-gray-800 text-sm">Menu</span>
+    <button onclick="toggleSidebar()" class="text-gray-500 hover:text-gray-800 text-xl font-bold p-1">×</button>
+  </div>
+
   <!-- Profile 用户信息 -->
   <a href="profile.html" class="flex items-center space-x-3 mb-6 p-2 rounded-xl bg-[#e3ebe3]/65 hover:bg-[#e3ebe3] transition border border-gray-200/60" title="View Profile">
     <div id="userAvatar" class="w-9 h-9 rounded-full bg-[#3b574a] text-white flex items-center justify-center font-bold text-base shrink-0">U</div>
@@ -73,12 +80,21 @@ body { background-color: #f7f6f2; font-family: -apple-system, BlinkMacSystemFont
 </aside>
 
 <!-- 主内容区 Main Content -->
-<main class="flex-1 overflow-y-auto p-8">
+<main class="flex-1 overflow-y-auto p-4 sm:p-8 w-full">
 <header class="flex justify-between items-center mb-6 flex-wrap gap-4">
-  <div>
-    <h1 id="welcomeHeader" class="text-3xl font-serif text-gray-900">Good day, User</h1>
-    <p id="subHeaderDate" class="text-sm text-gray-500 mt-1">Monthly Overview (Cloud Synced)</p>
+  <div class="flex items-center gap-3">
+    <!-- 手机端“三条线”菜单按钮 -->
+    <button onclick="toggleSidebar()" class="lg:hidden p-2 rounded-lg bg-white border border-gray-200 text-gray-600 hover:bg-gray-100 shadow-sm">
+      <svg class="w-6 h-6" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+        <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M4 6h16M4 12h16M4 18h16"></path>
+      </svg>
+    </button>
+    <div>
+      <h1 id="welcomeHeader" class="text-2xl sm:text-3xl font-serif text-gray-900">Good day, User</h1>
+      <p id="subHeaderDate" class="text-xs sm:text-sm text-gray-500 mt-1">Monthly Overview (Cloud Synced)</p>
+    </div>
   </div>
+
   <div class="flex items-center gap-3">
     <div class="flex items-center bg-white border border-gray-300 rounded-lg p-1 shadow-sm">
       <button onclick="changeMonth(-1)" class="px-3 py-1 text-sm text-gray-600 hover:bg-gray-100 rounded">◀</button>
@@ -182,82 +198,80 @@ body { background-color: #f7f6f2; font-family: -apple-system, BlinkMacSystemFont
 
 <!-- 弹窗 Modal -->
 <div id="entryModal" class="fixed inset-0 bg-black/40 hidden items-center justify-center z-50 backdrop-blur-sm">
-  <div class="bg-white rounded-2xl p-6 w-full max-w-md shadow-xl relative max-h-[90vh] overflow-y-auto">
-    <button onclick="closeModal()" class="absolute right-4 top-4 text-gray-400 hover:text-gray-600 text-xl font-bold">×</button>
-    <h3 id="modalTitle" class="text-lg font-bold text-gray-900 mb-4">Add New Entry</h3>
-    <form onsubmit="saveEntry(event)" class="space-y-4">
-      <input type="hidden" id="editIndex" value="-1">
-      <div class="grid grid-cols-2 gap-3">
-        <div>
-          <label class="block text-xs font-bold text-gray-600 mb-1">Type</label>
-          <select id="entryType" class="w-full p-2 border border-gray-300 rounded-lg text-sm focus:outline-none focus:ring-2 focus:ring-[#3b574a]">
-            <option value="Income">Income</option>
-            <option value="Expense">Expense</option>
-          </select>
-        </div>
-        <div>
-          <label class="block text-xs font-bold text-gray-600 mb-1">Category</label>
-          <select id="entryCategory" onchange="toggleInvoiceFields()" class="w-full p-2 border border-gray-300 rounded-lg text-sm focus:outline-none focus:ring-2 focus:ring-[#3b574a]"></select>
-        </div>
-      </div>
-
-      <div id="invNoGroup" style="display: none;">
-        <label class="block text-xs font-bold text-gray-600 mb-1">Invoice No. <span class="text-red-500">*</span></label>
-        <input type="text" id="entryInvNo" placeholder="e.g. INV-2026-001" class="w-full p-2 border border-gray-300 rounded-lg text-sm focus:outline-none focus:ring-2 focus:ring-[#3b574a]">
-      </div>
-
-      <div>
-        <label class="block text-xs font-bold text-gray-600 mb-1">Description / Item Name</label>
-        <input type="text" id="entryDesc" placeholder="e.g. Web Development / Office Rent" required class="w-full p-2 border border-gray-300 rounded-lg text-sm focus:outline-none focus:ring-2 focus:ring-[#3b574a]">
-      </div>
-
-      <div>
-        <label class="block text-xs font-bold text-gray-600 mb-1">Amount (RM)</label>
-        <input type="number" step="0.01" id="entryAmount" placeholder="0.00" required class="w-full p-2 border border-gray-300 rounded-lg text-sm focus:outline-none focus:ring-2 focus:ring-[#3b574a]">
-      </div>
-
-      <div class="grid grid-cols-2 gap-3">
-        <div>
-          <label class="block text-xs font-bold text-gray-600 mb-1">Issue Date</label>
-          <input type="date" id="entryDate" required class="w-full p-2 border border-gray-300 rounded-lg text-sm focus:outline-none focus:ring-2 focus:ring-[#3b574a]">
-        </div>
-        <div>
-          <label class="block text-xs font-bold text-gray-600 mb-1">Due Date</label>
-          <input type="date" id="entryDueDate" class="w-full p-2 border border-gray-300 rounded-lg text-sm focus:outline-none focus:ring-2 focus:ring-[#3b574a]">
-        </div>
-      </div>
-
-      <div class="grid grid-cols-2 gap-3">
-        <div>
-          <label class="block text-xs font-bold text-gray-600 mb-1">Status</label>
-          <select id="entryStatus" onchange="togglePaidDateField()" class="w-full p-2 border border-gray-300 rounded-lg text-sm focus:outline-none focus:ring-2 focus:ring-[#3b574a]">
-            <option value="Pending">Pending</option>
-            <option value="Paid">Paid</option>
-          </select>
-        </div>
-        <div id="paidDateGroup" style="display: none;">
-          <label class="block text-xs font-bold text-gray-600 mb-1">Paid Date</label>
-          <input type="date" id="entryPaidDate" class="w-full p-2 border border-gray-300 rounded-lg text-sm focus:outline-none focus:ring-2 focus:ring-[#3b574a]">
-        </div>
-      </div>
-
-      <div>
-        <div class="flex gap-2 mt-2">
-          <input type="text" id="newCatInput" placeholder="Add custom category" class="flex-1 p-2 border border-gray-300 rounded-lg text-xs focus:outline-none focus:ring-1 focus:ring-[#3b574a]">
-          <button type="button" onclick="addCategory()" class="px-3 py-1.5 bg-gray-100 hover:bg-gray-200 text-xs font-semibold rounded-lg transition">+ Add</button>
-          <button type="button" onclick="deleteCategory()" class="px-3 py-1.5 bg-gray-100 hover:bg-gray-200 text-xs font-semibold rounded-lg transition">- Remove</button>
-        </div>
-      </div>
-
-      <button type="submit" id="saveBtn" class="w-full py-2.5 bg-[#3b574a] hover:bg-[#2c4338] text-white rounded-lg font-medium text-sm transition shadow-sm mt-2">Save Entry</button>
-      <button type="button" id="deleteBtn" style="display: none;" onclick="deleteEntry()" class="w-full py-2 bg-red-50 hover:bg-red-100 text-red-600 rounded-lg font-medium text-sm transition border border-red-200 mt-1">Delete Entry</button>
-    </form>
+<div class="bg-white rounded-2xl p-6 w-full max-w-md shadow-xl relative max-h-[90vh] overflow-y-auto">
+<button onclick="closeModal()" class="absolute right-4 top-4 text-gray-400 hover:text-gray-600 text-xl font-bold">×</button>
+<h3 id="modalTitle" class="text-lg font-bold text-gray-900 mb-4">Add New Entry</h3>
+<form onsubmit="saveEntry(event)" class="space-y-4">
+<input type="hidden" id="editIndex" value="-1">
+<div class="grid grid-cols-2 gap-3">
+  <div>
+    <label class="block text-xs font-bold text-gray-600 mb-1">Type</label>
+    <select id="entryType" class="w-full p-2 border border-gray-300 rounded-lg text-sm focus:outline-none focus:ring-2 focus:ring-[#3b574a]">
+      <option value="Income">Income</option>
+      <option value="Expense">Expense</option>
+    </select>
+  </div>
+  <div>
+    <label class="block text-xs font-bold text-gray-600 mb-1">Category</label>
+    <select id="entryCategory" onchange="toggleInvoiceFields()" class="w-full p-2 border border-gray-300 rounded-lg text-sm focus:outline-none focus:ring-2 focus:ring-[#3b574a]"></select>
   </div>
 </div>
 
-<!-- =========================
-FIREBASE CLOUD SCRIPT (Module)
-========================= -->
+<div id="invNoGroup" style="display: none;">
+  <label class="block text-xs font-bold text-gray-600 mb-1">Invoice No. <span class="text-red-500">*</span></label>
+  <input type="text" id="entryInvNo" placeholder="e.g. INV-2026-001" class="w-full p-2 border border-gray-300 rounded-lg text-sm focus:outline-none focus:ring-2 focus:ring-[#3b574a]">
+</div>
+
+<div>
+  <label class="block text-xs font-bold text-gray-600 mb-1">Description / Item Name</label>
+  <input type="text" id="entryDesc" placeholder="e.g. Web Development / Office Rent" required class="w-full p-2 border border-gray-300 rounded-lg text-sm focus:outline-none focus:ring-2 focus:ring-[#3b574a]">
+</div>
+
+<div>
+  <label class="block text-xs font-bold text-gray-600 mb-1">Amount (RM)</label>
+  <input type="number" step="0.01" id="entryAmount" placeholder="0.00" required class="w-full p-2 border border-gray-300 rounded-lg text-sm focus:outline-none focus:ring-2 focus:ring-[#3b574a]">
+</div>
+
+<div class="grid grid-cols-2 gap-3">
+  <div>
+    <label class="block text-xs font-bold text-gray-600 mb-1">Issue Date</label>
+    <input type="date" id="entryDate" required class="w-full p-2 border border-gray-300 rounded-lg text-sm focus:outline-none focus:ring-2 focus:ring-[#3b574a]">
+  </div>
+  <div>
+    <label class="block text-xs font-bold text-gray-600 mb-1">Due Date</label>
+    <input type="date" id="entryDueDate" class="w-full p-2 border border-gray-300 rounded-lg text-sm focus:outline-none focus:ring-2 focus:ring-[#3b574a]">
+  </div>
+</div>
+
+<div class="grid grid-cols-2 gap-3">
+  <div>
+    <label class="block text-xs font-bold text-gray-600 mb-1">Status</label>
+    <select id="entryStatus" onchange="togglePaidDateField()" class="w-full p-2 border border-gray-300 rounded-lg text-sm focus:outline-none focus:ring-2 focus:ring-[#3b574a]">
+      <option value="Pending">Pending</option>
+      <option value="Paid">Paid</option>
+    </select>
+  </div>
+  <div id="paidDateGroup" style="display: none;">
+    <label class="block text-xs font-bold text-gray-600 mb-1">Paid Date</label>
+    <input type="date" id="entryPaidDate" class="w-full p-2 border border-gray-300 rounded-lg text-sm focus:outline-none focus:ring-2 focus:ring-[#3b574a]">
+  </div>
+</div>
+
+<div>
+  <div class="flex gap-2 mt-2">
+    <input type="text" id="newCatInput" placeholder="Add custom category" class="flex-1 p-2 border border-gray-300 rounded-lg text-xs focus:outline-none focus:ring-1 focus:ring-[#3b574a]">
+    <button type="button" onclick="addCategory()" class="px-3 py-1.5 bg-gray-100 hover:bg-gray-200 text-xs font-semibold rounded-lg transition">+ Add</button>
+    <button type="button" onclick="deleteCategory()" class="px-3 py-1.5 bg-gray-100 hover:bg-gray-200 text-xs font-semibold rounded-lg transition">- Remove</button>
+  </div>
+</div>
+
+<button type="submit" id="saveBtn" class="w-full py-2.5 bg-[#3b574a] hover:bg-[#2c4338] text-white rounded-lg font-medium text-sm transition shadow-sm mt-2">Save Entry</button>
+<button type="button" id="deleteBtn" style="display: none;" onclick="deleteEntry()" class="w-full py-2 bg-red-50 hover:bg-red-100 text-red-600 rounded-lg font-medium text-sm transition border border-red-200 mt-1">Delete Entry</button>
+</form>
+</div>
+</div>
+
+<!-- FIREBASE CLOUD SCRIPT (Module) -->
 <script type="module">
 import { initializeApp } from "https://www.gstatic.com/firebasejs/10.8.0/firebase-app.js";
 import { getAuth, onAuthStateChanged } from "https://www.gstatic.com/firebasejs/10.8.0/firebase-auth.js";
@@ -309,6 +323,19 @@ window.onload = function() {
   });
 };
 
+// 控制手机端侧边栏的展开与折叠
+window.toggleSidebar = function() {
+  const sidebar = document.getElementById("sidebar");
+  const overlay = document.getElementById("sidebarOverlay");
+  if (sidebar.classList.contains("-translate-x-full")) {
+    sidebar.classList.remove("-translate-x-full");
+    overlay.classList.remove("hidden");
+  } else {
+    sidebar.classList.add("-translate-x-full");
+    overlay.classList.add("hidden");
+  }
+}
+
 async function loadUserDataFromAuth(user) {
   let userName = user.email.split('@')[0];
   let userAvatar = "";
@@ -322,12 +349,7 @@ async function loadUserDataFromAuth(user) {
       if (data.avatar) userAvatar = data.avatar;
     }
   } catch (e) {
-    console.warn("从云端加载用户名失败，降级使用本地缓存", e);
-    const currentUser = JSON.parse(localStorage.getItem("wispendCurrentUser"));
-    if (currentUser && currentUser.name) {
-      userName = currentUser.name;
-      userAvatar = currentUser.avatar || "";
-    }
+    console.warn("从云端加载用户名失败", e);
   }
   document.getElementById("userNameDisplay").textContent = userName;
   document.getElementById("welcomeHeader").textContent = "Good day, " + userName;
@@ -475,7 +497,6 @@ function renderDashboard() {
   currentEntries.forEach(e => {
     const isPaymentReceived = e.category === 'Payment Received';
     const isNormalOrPaidInvoice = (e.category !== 'Invoice' || e.status === 'Paid');
-
     if (isPaymentReceived || isNormalOrPaidInvoice) {
       if (e.type === 'Income') cIncome += parseFloat(e.amount);
       else if (e.type === 'Expense') cExpense += parseFloat(e.amount);
@@ -486,7 +507,6 @@ function renderDashboard() {
   prevEntries.forEach(e => {
     const isPaymentReceived = e.category === 'Payment Received';
     const isNormalOrPaidInvoice = (e.category !== 'Invoice' || e.status === 'Paid');
-
     if (isPaymentReceived || isNormalOrPaidInvoice) {
       if (e.type === 'Income') pIncome += parseFloat(e.amount);
       else if (e.type === 'Expense') pExpense += parseFloat(e.amount);
@@ -589,7 +609,6 @@ function renderCashFlowChart(allEntries) {
     allEntries.forEach(e => {
       const isPaymentReceived = e.category === 'Payment Received';
       const isNormalOrPaidInvoice = (e.category !== 'Invoice' || e.status === 'Paid');
-
       if (!isPaymentReceived && !isNormalOrPaidInvoice) return;
 
       let activeDate = e.date;
@@ -747,7 +766,6 @@ window.saveEntry = async function(event) {
         await updateDoc(docRef, entryData);
       }
     }
-
     closeModal();
     alert(editIndex === -1 ? "New entry added and synced to cloud!" : "Entry updated successfully!");
   } catch (e) {
@@ -756,13 +774,12 @@ window.saveEntry = async function(event) {
   }
 }
 
-// 核心修改点：删除时自动写入 history 集合，以便 History 页面能够显示
 window.deleteEntry = async function() {
   const editIndex = parseInt(document.getElementById("editIndex").value);
   if (editIndex === -1) return;
 
   const reason = prompt("Please enter the reason for deletion:");
-  if (reason === null) return; // 用户点击取消
+  if (reason === null) return; 
 
   const target = allEntries[editIndex];
 
@@ -771,7 +788,6 @@ window.deleteEntry = async function() {
       const currentUser = auth.currentUser;
       const now = new Date();
 
-      // 1. 写入 history 集合
       await addDoc(collection(db, "history"), {
         userId: currentUser.uid,
         action: 'Delete Transaction',
@@ -787,10 +803,8 @@ window.deleteEntry = async function() {
         deletedAtDate: now.toISOString().split('T')[0]
       });
 
-      // 2. 从 transactions 集合中删除记录
       await deleteDoc(doc(db, "transactions", target.firestoreId));
     }
-
     closeModal();
     alert("Entry deleted successfully and logged to history.");
   } catch (e) {

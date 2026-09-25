@@ -14,70 +14,24 @@
 <meta name="apple-mobile-web-app-status-bar-style" content="black-translucent">
 <meta name="theme-color" content="#3b574a">
 
+<!-- 引入 Tailwind CSS -->
+<script src="https://cdn.tailwindcss.com"></script>
+<script>
+tailwind.config = {
+  theme: {
+    extend: {
+      colors: {
+        brand: { 50: '#f4f7f4', 100: '#e3ebe3', 500: '#3b574a', 600: '#2c4338', 700: '#1f302b' },
+        bgLight: '#f7f6f2', cardBg: '#ffffff'
+      }
+    }
+  }
+}
+</script>
+
 <style>
-* { margin: 0; padding: 0; box-sizing: border-box; font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, sans-serif; }
-body { background-color: #f7f6f2; color: #1f302b; display: flex; height: 100vh; overflow: hidden; }
+body { background-color: #f7f6f2; color: #1f302b; }
 
-/* 左侧 Sidebar (固定不动，内部上下分栏) */
-.sidebar { width: 260px; background: #f2f0e9; padding: 24px; display: flex; flex-direction: column; border-right: 1px solid #e2e8e4; justify-content: space-between; flex-shrink: 0; height: 100vh; position: sticky; top: 0; }
-.user-profile { display: flex; align-items: center; gap: 12px; cursor: pointer; padding: 10px; border-radius: 12px; transition: 0.2s; text-decoration: none; color: inherit; background: rgba(227, 235, 227, 0.6); border: 1px solid rgba(220, 228, 220, 0.6); margin-bottom: 24px; }
-.user-profile:hover { background: #e3ebe3; }
-.avatar { width: 36px; height: 36px; background: #3b574a; color: white; border-radius: 50%; display: flex; align-items: center; justify-content: center; font-weight: bold; font-size: 15px; flex-shrink: 0; overflow: hidden; object-fit: cover; }
-.avatar img { width: 100%; height: 100%; object-fit: cover; }
-.brand-title { font-weight: 700; font-size: 14px; color: #1f302b; line-height: 1.2; white-space: nowrap; overflow: hidden; text-overflow: ellipsis; max-width: 140px; }
-.brand-sub { font-size: 12px; color: #697d75; }
-
-.nav-section-title { font-size: 11px; font-weight: 700; color: #8e9f97; letter-spacing: 1px; margin-bottom: 12px; }
-.nav-item { display: block; padding: 10px 12px; color: #4e6158; text-decoration: none; border-radius: 8px; font-size: 14px; font-weight: 600; margin-bottom: 4px; transition: 0.2s; }
-.nav-item.active { background: #e3ebe3; color: #2c4338; }
-.nav-item:hover:not(.active) { background: rgba(0,0,0,0.04); }
-
-/* 左下角 Logo 区域 */
-.sidebar-footer { border-top: 1px solid #e2e8e4; display: flex; align-items: center; gap: 12px; padding-top: 16px; }
-.sidebar-logo-img { width: 36px; height: 36px; border-radius: 10px; object-fit: cover; flex-shrink: 0; box-shadow: 0 1px 2px rgba(0,0,0,0.05); }
-
-/* 主区域 Main Content */
-.main-content { flex: 1; padding: 32px 40px; overflow-y: auto; height: 100vh; }
-.top-header { display: flex; justify-content: space-between; align-items: center; margin-bottom: 25px; }
-.greeting h1 { font-size: 30px; font-family: serif; font-weight: normal; color: #1f302b; }
-.greeting p { font-size: 13px; color: #697d75; margin-top: 4px; }
-.header-actions { display: flex; align-items: center; gap: 15px; }
-
-.year-picker { display: flex; align-items: center; background: white; border: 1px solid #d5ded8; border-radius: 8px; padding: 4px; box-shadow: 0 1px 2px rgba(0,0,0,0.02); }
-.year-btn { background: none; border: none; padding: 6px 10px; cursor: pointer; font-size: 13px; color: #4e6158; border-radius: 4px; }
-.year-btn:hover { background: #f0f4f1; }
-.current-year-display { font-weight: 700; font-size: 13px; padding: 0 8px; }
-
-.btn-new-entry { background: #3b574a; color: white; border: none; padding: 9px 16px; border-radius: 8px; font-weight: 600; cursor: pointer; font-size: 13px; transition: 0.2s; box-shadow: 0 1px 2px rgba(0,0,0,0.05); }
-.btn-new-entry:hover { background: #2c4338; }
-
-/* 交易主面板 Panel */
-.panel { background: white; border-radius: 16px; padding: 24px; border: 1px solid #e1e8e3; box-shadow: 0 4px 12px rgba(0,0,0,0.03); }
-
-/* 过滤与搜索工具栏 */
-.toolbar { display: flex; justify-content: space-between; align-items: center; margin-bottom: 20px; flex-wrap: wrap; gap: 15px; }
-.type-tabs { display: flex; background: #f0f4f1; padding: 4px; border-radius: 20px; gap: 4px; }
-.tab-btn { border: none; background: none; padding: 6px 16px; border-radius: 16px; font-size: 13px; font-weight: 600; color: #697d75; cursor: pointer; transition: 0.2s; }
-.tab-btn.active { background: white; color: #1f302b; box-shadow: 0 2px 4px rgba(0,0,0,0.05); }
-
-.search-filter-group { display: flex; gap: 10px; align-items: center; }
-.filter-select { padding: 8px 14px; border: 1px solid #d5ded8; border-radius: 20px; font-size: 13px; color: #4e6158; background: white; outline: none; cursor: pointer; transition: 0.2s; }
-.filter-select:focus { border-color: #3b574a; }
-.search-input { padding: 8px 16px; border: 1px solid #d5ded8; border-radius: 20px; font-size: 13px; outline: none; width: 220px; background: white; transition: 0.2s; }
-.search-input:focus { border-color: #3b574a; box-shadow: 0 0 0 3px rgba(59, 87, 74, 0.1); }
-
-/* 滚动区域 */
-.table-scroll-container { max-height: calc(100vh - 300px); overflow-y: auto; border-radius: 8px; }
-
-/* 表格样式 */
-table { width: 100%; border-collapse: collapse; text-align: left; }
-thead { position: sticky; top: 0; background: white; z-index: 10; box-shadow: 0 1px 0 #eee; }
-th { font-size: 11px; color: #8e9f97; letter-spacing: 0.5px; padding: 12px 10px; border-bottom: 1px solid #eee; }
-td { padding: 16px 10px; font-size: 13px; border-bottom: 1px solid #f5f7f5; }
-tbody tr { cursor: pointer; transition: background 0.15s; }
-tbody tr:hover { background-color: #f7faf8; }
-
-.cat-tag { padding: 4px 10px; border-radius: 12px; font-size: 11px; font-weight: 600; display: inline-block; }
 .cat-Sales { background: #e4f2eb; color: #2e7d5a; }
 .cat-Invoice { background: #e3ebe3; color: #2c4338; }
 .cat-Facilities { background: #fce8e6; color: #c53929; }
@@ -86,8 +40,6 @@ tbody tr:hover { background-color: #f7faf8; }
 .cat-PaymentReceived { background: #e0f2fe; color: #0369a1; }
 .cat-Default { background: #f0f4f1; color: #4e6158; }
 
-/* Status 状态标签样式 */
-.status-tag { padding: 3px 8px; border-radius: 10px; font-size: 10px; font-weight: 700; margin-left: 6px; text-transform: uppercase; display: inline-block; }
 .status-paid { background-color: #e4f2eb; color: #2e7d5a; }
 .status-pending { background-color: #fef3c7; color: #d97706; }
 .status-overdue { background-color: #fce8e6; color: #c53929; }
@@ -95,168 +47,177 @@ tbody tr:hover { background-color: #f7faf8; }
 .amt-income { color: #2e7d5a; font-weight: 700; }
 .amt-expense { color: #c53929; font-weight: 700; }
 
-/* Modal 弹窗 */
-.modal { display: none; position: fixed; inset: 0; background: rgba(0,0,0,0.4); backdrop-filter: blur(2px); justify-content: center; align-items: center; z-index: 1000; animation: fadeIn 0.2s ease; }
-.modal.active { display: flex; }
-.modal-box { background: white; padding: 30px; border-radius: 16px; width: 450px; position: relative; box-shadow: 0 15px 35px rgba(0,0,0,0.15); animation: scaleUp 0.2s ease; }
-.modal-title { font-size: 18px; font-weight: 700; margin-bottom: 20px; color: #1f302b; }
-.form-group { margin-bottom: 15px; }
-.form-group label { display: block; font-size: 12px; font-weight: 700; margin-bottom: 6px; color: #4e6158; }
-.form-group input, .form-group select { width: 100%; padding: 10px; border: 1px solid #d5ded8; border-radius: 8px; font-size: 14px; outline: none; transition: 0.2s; background: #fff; }
-.form-group input:focus, .form-group select:focus { border-color: #3b574a; box-shadow: 0 0 0 3px rgba(59, 87, 74, 0.1); }
-.close-btn { position: absolute; right: 20px; top: 20px; border: none; background: none; font-size: 20px; cursor: pointer; color: #8e9f97; transition: 0.2s; }
-.close-btn:hover { color: #1f302b; }
-.btn-delete { background: #fce8e6; color: #c53929; border: none; padding: 10px 20px; border-radius: 8px; font-weight: 600; cursor: pointer; font-size: 14px; width: 100%; margin-top: 8px; transition: 0.2s; }
-.btn-delete:hover { background: #fad0cd; }
-
 @keyframes fadeIn { from { opacity: 0; } to { opacity: 1; } }
 @keyframes scaleUp { from { transform: scale(0.95); } to { transform: scale(1); } }
+.modal { animation: fadeIn 0.2s ease; }
+.modal-box { animation: scaleUp 0.2s ease; }
 </style>
 </head>
 
-<body>
+<body class="flex h-screen overflow-hidden">
 
-<!-- 左侧 Sidebar -->
-<aside class="sidebar">
-<div>
-<a href="profile.html" class="user-profile" title="View Profile">
-<div class="avatar" id="userAvatar">U</div>
-<div style="overflow: hidden;">
-<div class="brand-title" id="userNameDisplay">User Name</div>
-<div class="brand-sub">View Profile</div>
-</div>
-</a>
+<!-- 手机端半透明遮罩 (点击可关闭侧边栏) -->
+<div id="sidebarOverlay" onclick="toggleSidebar()" class="fixed inset-0 bg-black/40 z-40 hidden lg:hidden transition-opacity"></div>
 
+<!-- 左侧 Sidebar（手机端抽屉式隐藏，电脑端固定） -->
+<aside id="sidebar" class="fixed lg:static inset-y-0 left-0 z-50 w-64 bg-[#f2f0e9] border-r border-[#e2e8e4] flex flex-col justify-between p-6 shrink-0 h-screen -translate-x-full lg:translate-x-0 transition-transform duration-300 ease-in-out">
 <div>
-<div class="nav-section-title">WORKSPACE</div>
-<a href="dashboard.html" class="nav-item">Dashboard</a>
-<a href="transactions.html" class="nav-item active">Transactions</a>
-<a href="invoices.html" class="nav-item">Invoices</a>
-<a href="reports.html" class="nav-item">Reports</a>
-<a href="history.html" class="nav-item">History</a>
-</div>
+  <!-- 手机端侧边栏内部的关闭按钮 -->
+  <div class="flex justify-between items-center mb-6 lg:hidden">
+    <span class="font-bold text-gray-800 text-sm">Menu</span>
+    <button onclick="toggleSidebar()" class="text-gray-500 hover:text-gray-800 text-xl font-bold p-1">×</button>
+  </div>
+
+  <a href="profile.html" class="flex items-center space-x-3 mb-6 p-2 rounded-xl bg-[#e3ebe3]/60 hover:bg-[#e3ebe3] transition border border-[#dce4dc]/60" title="View Profile">
+    <div id="userAvatar" class="w-9 h-9 rounded-full bg-[#3b574a] text-white flex items-center justify-center font-bold text-base shrink-0 overflow-hidden">U</div>
+    <div class="overflow-hidden">
+      <div class="font-bold text-[#1f302b] text-sm truncate" id="userNameDisplay">User Name</div>
+      <div class="text-xs text-[#697d75]">View Profile</div>
+    </div>
+  </a>
+
+  <div>
+    <div class="text-[11px] font-bold text-[#8e9f97] tracking-wider mb-3">WORKSPACE</div>
+    <nav class="space-y-1">
+      <a href="dashboard.html" class="flex items-center px-3 py-2.5 text-sm font-semibold text-[#4e6158] rounded-lg hover:bg-black/5 transition">Dashboard</a>
+      <a href="transactions.html" class="flex items-center px-3 py-2.5 text-sm font-semibold text-[#2c4338] bg-[#e3ebe3] rounded-lg">Transactions</a>
+      <a href="invoices.html" class="flex items-center px-3 py-2.5 text-sm font-semibold text-[#4e6158] rounded-lg hover:bg-black/5 transition">Invoices</a>
+      <a href="reports.html" class="flex items-center px-3 py-2.5 text-sm font-semibold text-[#4e6158] rounded-lg hover:bg-black/5 transition">Reports</a>
+      <a href="history.html" class="flex items-center px-3 py-2.5 text-sm font-semibold text-[#4e6158] rounded-lg hover:bg-black/5 transition">History</a>
+    </nav>
+  </div>
 </div>
 
-<div class="sidebar-footer">
-<img src="https://lh3.google.com/u/0/d/1-WvkMpo2mSk6F3rouTRuoMFT7JAh5e9M" alt="Logo" class="sidebar-logo-img">
-<div>
-<div style="font-weight: 700; font-size: 14px; color: #1f302b; line-height: 1.2;">WISPEND</div>
-<div class="brand-sub">Financial Ledger</div>
-</div>
+<div class="border-t border-[#e2e8e4] pt-4 flex items-center space-x-3">
+  <img src="https://lh3.google.com/u/0/d/1-WvkMpo2mSk6F3rouTRuoMFT7JAh5e9M" alt="Logo" class="w-9 h-9 rounded-xl object-cover shrink-0 shadow-sm">
+  <div>
+    <div class="font-bold text-[#1f302b] text-sm leading-tight">WISPEND</div>
+    <div class="text-xs text-[#697d75]">Financial Ledger</div>
+  </div>
 </div>
 </aside>
 
-<!-- 主界面 -->
-<main class="main-content">
-<header class="top-header">
-<div class="greeting">
-<h1>Transactions</h1>
-<p id="transactionSubText">0 postings · Full Year 2026</p>
-</div>
-<div class="header-actions">
-<div class="year-picker">
-<button class="year-btn" onclick="changeYear(-1)">◀</button>
-<span class="current-year-display" id="yearDisplay">2026</span>
-<button class="year-btn" onclick="changeYear(1)">▶</button>
-</div>
-<button class="btn-new-entry" onclick="openAddModal()">+ New entry</button>
-</div>
+<!-- 主界面 Main Content -->
+<main class="flex-1 overflow-y-auto p-4 sm:p-10 h-screen">
+<header class="flex justify-between items-center mb-6 flex-wrap gap-4">
+  <div class="flex items-center gap-3">
+    <!-- 手机端“三条线”汉堡菜单按钮 -->
+    <button onclick="toggleSidebar()" class="lg:hidden p-2 rounded-lg bg-white border border-[#d5ded8] text-[#4e6158] hover:bg-gray-100 shadow-sm shrink-0">
+      <svg class="w-6 h-6" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+        <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M4 6h16M4 12h16M4 18h16"></path>
+      </svg>
+    </button>
+    <div>
+      <h1 class="text-2xl sm:text-3xl font-serif text-[#1f302b]">Transactions</h1>
+      <p id="transactionSubText" class="text-xs sm:text-sm text-[#697d75] mt-1">0 postings · Full Year 2026</p>
+    </div>
+  </div>
+
+  <div class="flex items-center gap-3 flex-wrap">
+    <div class="flex items-center bg-white border border-[#d5ded8] rounded-lg p-1 shadow-sm">
+      <button class="bg-none border-none py-1.5 px-2.5 cursor-pointer text-xs text-[#4e6158] rounded hover:bg-[#f0f4f1] transition" onclick="changeYear(-1)">◀</button>
+      <span class="font-bold text-xs sm:text-sm px-2" id="yearDisplay">2026</span>
+      <button class="bg-none border-none py-1.5 px-2.5 cursor-pointer text-xs text-[#4e6158] rounded hover:bg-[#f0f4f1] transition" onclick="changeYear(1)">▶</button>
+    </div>
+    <button class="bg-[#3b574a] text-white border-none px-4 py-2.5 rounded-lg font-semibold cursor-pointer text-xs sm:text-sm transition shadow-sm hover:bg-[#2c4338]" onclick="openAddModal()">+ New entry</button>
+  </div>
 </header>
 
-<section class="panel">
-<div class="toolbar">
-<div class="type-tabs">
-<button class="tab-btn active" onclick="setTypeFilter('All', this)">All</button>
-<button class="tab-btn" onclick="setTypeFilter('Income', this)">Income</button>
-<button class="tab-btn" onclick="setTypeFilter('Expense', this)">Expense</button>
-</div>
+<section class="bg-white rounded-2xl p-4 sm:p-6 border border-[#e1e8e3] shadow-sm">
+  <div class="flex justify-between items-center mb-5 flex-wrap gap-4">
+    <div class="flex bg-[#f0f4f1] p-1 rounded-full gap-1">
+      <button class="border-none bg-transparent py-1.5 px-4 rounded-full text-xs sm:text-sm font-semibold text-[#697d75] cursor-pointer transition active" onclick="setTypeFilter('All', this)">All</button>
+      <button class="border-none bg-transparent py-1.5 px-4 rounded-full text-xs sm:text-sm font-semibold text-[#697d75] cursor-pointer transition" onclick="setTypeFilter('Income', this)">Income</button>
+      <button class="border-none bg-transparent py-1.5 px-4 rounded-full text-xs sm:text-sm font-semibold text-[#697d75] cursor-pointer transition" onclick="setTypeFilter('Expense', this)">Expense</button>
+    </div>
 
-<div class="search-filter-group">
-<select class="filter-select" id="categoryFilter" onchange="renderTransactions()">
-<option value="All">All categories</option>
-</select>
-<input type="text" class="search-input" id="searchInput" placeholder="Search description or amount..." oninput="renderTransactions()">
-</div>
-</div>
+    <div class="flex gap-2.5 items-center flex-wrap w-full sm:w-auto">
+      <select class="py-2 px-3.5 border border-[#d5ded8] rounded-full text-xs sm:text-sm text-[#4e6158] bg-white outline-none cursor-pointer transition focus:border-[#3b574a]" id="categoryFilter" onchange="renderTransactions()">
+        <option value="All">All categories</option>
+      </select>
+      <input type="text" class="py-2 px-4 border border-[#d5ded8] rounded-full text-xs sm:text-sm outline-none w-full sm:w-56 bg-white transition focus:border-[#3b574a] focus:ring-2 focus:ring-[#3b574a]/10" id="searchInput" placeholder="Search description..." oninput="renderTransactions()">
+    </div>
+  </div>
 
-<div class="table-scroll-container">
-<table>
-<thead>
-<tr>
-<th style="width: 15%;">DATE</th>
-<th style="width: 35%;">NAME</th>
-<th style="width: 25%;">CATEGORY</th>
-<th style="width: 25%; text-align: right;">AMOUNT</th>
-</tr>
-</thead>
-<tbody id="transactionTableBody"></tbody>
-</table>
-</div>
+  <div class="max-h-[calc(100vh-320px)] overflow-y-auto rounded-lg">
+    <table class="w-full border-collapse text-left">
+      <thead class="sticky top-0 bg-white z-10 shadow-sm">
+        <tr>
+          <th class="text-[11px] text-[#8e9f97] tracking-wider py-3 px-3 w-1/6">DATE</th>
+          <th class="text-[11px] text-[#8e9f97] tracking-wider py-3 px-3 w-3/12">NAME</th>
+          <th class="text-[11px] text-[#8e9f97] tracking-wider py-3 px-3 w-1/4">CATEGORY</th>
+          <th class="text-[11px] text-[#8e9f97] tracking-wider py-3 px-3 text-right w-1/4">AMOUNT</th>
+        </tr>
+      </thead>
+      <tbody id="transactionTableBody"></tbody>
+    </table>
+  </div>
 </section>
 </main>
 
 <!-- Modal 弹窗 -->
-<div class="modal" id="entryModal">
-<div class="modal-box">
-<button class="close-btn" onclick="closeModal()">×</button>
-<div class="modal-title" id="modalTitle">Add New Entry</div>
-<form onsubmit="saveEntry(event)">
-<input type="hidden" id="editDocId" value="">
+<div class="modal hidden fixed inset-0 bg-black/40 backdrop-blur-[2px] justify-center items-center z-50 p-4" id="entryModal">
+  <div class="modal-box bg-white p-6 sm:p-8 rounded-2xl w-full max-w-md relative shadow-2xl">
+    <button class="absolute right-5 top-5 border-none bg-transparent text-xl cursor-pointer text-[#8e9f97] hover:text-[#1f302b] transition" onclick="closeModal()">×</button>
+    <div class="text-lg font-bold mb-5 text-[#1f302b]" id="modalTitle">Add New Entry</div>
+    <form onsubmit="saveEntry(event)" class="space-y-4">
+      <input type="hidden" id="editDocId" value="">
 
-<div class="form-group">
-<label>Type</label>
-<select id="entryType">
-<option value="Income">Income</option>
-<option value="Expense">Expense</option>
-</select>
+      <div>
+        <label class="block text-xs font-bold mb-1.5 text-[#4e6158]">Type</label>
+        <select id="entryType" class="w-full p-2.5 border border-[#d5ded8] rounded-lg text-sm bg-white outline-none focus:border-[#3b574a]">
+          <option value="Income">Income</option>
+          <option value="Expense">Expense</option>
+        </select>
+      </div>
+
+      <div>
+        <label class="block text-xs font-bold mb-1.5 text-[#4e6158]">Description / Item Name</label>
+        <input type="text" id="entryDesc" class="w-full p-2.5 border border-[#d5ded8] rounded-lg text-sm outline-none focus:border-[#3b574a]" placeholder="e.g. Sales Revenue / Rent" required>
+      </div>
+
+      <div>
+        <label class="block text-xs font-bold mb-1.5 text-[#4e6158]">Amount (RM)</label>
+        <input type="number" step="0.01" id="entryAmount" class="w-full p-2.5 border border-[#d5ded8] rounded-lg text-sm outline-none focus:border-[#3b574a]" placeholder="0.00" required>
+      </div>
+
+      <div>
+        <label class="block text-xs font-bold mb-1.5 text-[#4e6158]">Date / Issue Date</label>
+        <input type="date" id="entryDate" class="w-full p-2.5 border border-[#d5ded8] rounded-lg text-sm outline-none focus:border-[#3b574a]" required>
+      </div>
+
+      <div id="dueDateGroup">
+        <label class="block text-xs font-bold mb-1.5 text-[#4e6158]">Due Date</label>
+        <input type="date" id="entryDueDate" class="w-full p-2.5 border border-[#d5ded8] rounded-lg text-sm outline-none focus:border-[#3b574a]">
+      </div>
+
+      <div>
+        <label class="block text-xs font-bold mb-1.5 text-[#4e6158]">Category</label>
+        <select id="entryCategory" class="w-full p-2.5 border border-[#d5ded8] rounded-lg text-sm bg-white outline-none focus:border-[#3b574a]" onchange="checkCategoryField()"></select>
+      </div>
+
+      <button type="submit" class="w-full bg-[#3b574a] text-white py-3 rounded-lg font-semibold text-sm hover:bg-[#2c4338] transition shadow-sm mt-2" id="saveBtn">Save Entry</button>
+      <button type="button" class="w-full bg-[#fce8e6] text-[#c53929] border-none py-2.5 rounded-lg font-semibold text-sm hover:bg-[#fad0cd] transition" id="deleteBtn" style="display: none;" onclick="deleteTransaction()">Delete Entry</button>
+    </form>
+  </div>
 </div>
 
-<div class="form-group">
-<label>Description / Item Name</label>
-<input type="text" id="entryDesc" placeholder="e.g. Sales Revenue / Rent" required>
-</div>
-
-<div class="form-group">
-<label>Amount (RM)</label>
-<input type="number" step="0.01" id="entryAmount" placeholder="0.00" required>
-</div>
-
-<div class="form-group">
-<label>Date / Issue Date</label>
-<input type="date" id="entryDate" required>
-</div>
-
-<div class="form-group" id="dueDateGroup">
-<label>Due Date</label>
-<input type="date" id="entryDueDate">
-</div>
-
-<div class="form-group">
-<label>Category</label>
-<select id="entryCategory" onchange="checkCategoryField()"></select>
-</div>
-
-<button type="submit" class="btn-new-entry" style="width: 100%; margin-top: 10px;" id="saveBtn">Save Entry</button>
-<!-- 绑定全局函数 onclick 触发删除 -->
-<button type="button" class="btn-delete" id="deleteBtn" style="display: none;" onclick="deleteTransaction()">Delete Entry</button>
-</form>
-</div>
-</div>
-
-<!-- FIREBASE AUTH & FIRESTORE SYNC -->
+<!-- =========================
+FIREBASE AUTH & FIRESTORE SYNC
+========================= -->
 <script type="module">
 import { initializeApp } from "https://www.gstatic.com/firebasejs/10.8.0/firebase-app.js";
 import { getAuth, onAuthStateChanged } from "https://www.gstatic.com/firebasejs/10.8.0/firebase-auth.js";
 import { getFirestore, doc, getDoc, collection, getDocs, addDoc, updateDoc, deleteDoc, query, where, onSnapshot } from "https://www.gstatic.com/firebasejs/10.8.0/firebase-firestore.js";
 
 const firebaseConfig = {
-apiKey: "AIzaSyDKXFjTwZ92ITi-s4Sbph_bjNjuvkNQOb4",
-authDomain: "wispend-1234.firebaseapp.com",
-projectId: "wispend-1234",
-storageBucket: "wispend-1234.firebasestorage.app",
-messagingSenderId: "227503315553",
-appId: "1:227503315553:web:a913fdcab269787e926820",
-measurementId: "G-L3S3EK3Q1Z"
+  apiKey: "AIzaSyDKXFjTwZ92ITi-s4Sbph_bjNjuvkNQOb4",
+  authDomain: "wispend-1234.firebaseapp.com",
+  projectId: "wispend-1234",
+  storageBucket: "wispend-1234.firebasestorage.app",
+  messagingSenderId: "227503315553",
+  appId: "1:227503315553:web:a913fdcab269787e926820",
+  measurementId: "G-L3S3EK3Q1Z"
 };
 
 const app = initializeApp(firebaseConfig);
@@ -271,320 +232,334 @@ let cachedInvoices = [];
 let unsubscribeEntries = null;
 
 onAuthStateChanged(auth, async (user) => {
-if (user) {
-currentUid = user.uid;
-await loadUserData(user);
-await initCategories();
-initRealtimeSync();
-document.getElementById('entryDate').valueAsDate = new Date();
-document.getElementById('entryDueDate').valueAsDate = new Date();
-} else {
-alert("Please login first!");
-window.location.href = "index.html";
-}
+  if (user) {
+    currentUid = user.uid;
+    await loadUserData(user);
+    await initCategories();
+    initRealtimeSync();
+    document.getElementById('entryDate').valueAsDate = new Date();
+    document.getElementById('entryDueDate').valueAsDate = new Date();
+  } else {
+    alert("Please login first!");
+    window.location.href = "index.html";
+  }
 });
 
+// 控制手机端侧边栏的展开与折叠
+window.toggleSidebar = function() {
+  const sidebar = document.getElementById("sidebar");
+  const overlay = document.getElementById("sidebarOverlay");
+  if (sidebar.classList.contains("-translate-x-full")) {
+    sidebar.classList.remove("-translate-x-full");
+    overlay.classList.remove("hidden");
+  } else {
+    sidebar.classList.add("-translate-x-full");
+    overlay.classList.add("hidden");
+  }
+}
+
 async function loadUserData(user) {
-try {
-const userDocRef = doc(db, "users", user.uid);
-const userSnap = await getDoc(userDocRef);
-let name = user.displayName || user.email.split('@')[0];
-let avatar = "";
-if (userSnap.exists()) {
-const data = userSnap.data();
-name = data.name || name;
-avatar = data.avatar || "";
-}
-document.getElementById("userNameDisplay").textContent = name;
-const avatarEl = document.getElementById("userAvatar");
-if (avatar) {
-avatarEl.innerHTML = `<img src="${avatar}" alt="Avatar">`;
-} else {
-avatarEl.textContent = name.charAt(0).toUpperCase();
-}
-} catch (error) {
-console.error("Error loading user profile:", error);
-}
+  try {
+    const userDocRef = doc(db, "users", user.uid);
+    const userSnap = await getDoc(userDocRef);
+    let name = user.displayName || user.email.split('@')[0];
+    let avatar = "";
+    if (userSnap.exists()) {
+      const data = userSnap.data();
+      name = data.name || name;
+      avatar = data.avatar || "";
+    }
+    document.getElementById("userNameDisplay").textContent = name;
+    const avatarEl = document.getElementById("userAvatar");
+    if (avatar) {
+      avatarEl.innerHTML = `<img src="${avatar}" alt="Avatar" class="w-full h-full object-cover rounded-full">`;
+    } else {
+      avatarEl.textContent = name.charAt(0).toUpperCase();
+    }
+  } catch (error) {
+    console.error("Error loading user profile:", error);
+  }
 }
 
 async function initCategories() {
-let savedCats = ["Invoice", "Sales", "Facilities", "Logistics", "Payroll", "Others", "Payment Received"];
-try {
-const catDoc = await getDoc(doc(db, "users", currentUid, "settings", "categories"));
-if (catDoc.exists() && catDoc.data().list) {
-savedCats = catDoc.data().list;
-if (!savedCats.includes("Payment Received")) savedCats.push("Payment Received");
-}
-} catch (e) {
-console.log("Using default categories");
-}
+  let savedCats = ["Invoice", "Sales", "Facilities", "Logistics", "Payroll", "Others", "Payment Received"];
+  try {
+    const catDoc = await getDoc(doc(db, "users", currentUid, "settings", "categories"));
+    if (catDoc.exists() && catDoc.data().list) {
+      savedCats = catDoc.data().list;
+      if (!savedCats.includes("Payment Received")) savedCats.push("Payment Received");
+    }
+  } catch (e) {
+    console.log("Using default categories");
+  }
 
-const filterSelect = document.getElementById("categoryFilter");
-filterSelect.innerHTML = '<option value="All">All categories</option>';
-const entrySelect = document.getElementById("entryCategory");
-entrySelect.innerHTML = '';
+  const filterSelect = document.getElementById("categoryFilter");
+  filterSelect.innerHTML = '<option value="All">All categories</option>';
+  const entrySelect = document.getElementById("entryCategory");
+  entrySelect.innerHTML = '';
 
-savedCats.forEach(cat => {
-filterSelect.innerHTML += `<option value="${cat}">${cat}</option>`;
-entrySelect.innerHTML += `<option value="${cat}">${cat}</option>`;
-});
-checkCategoryField();
+  savedCats.forEach(cat => {
+    filterSelect.innerHTML += `<option value="${cat}">${cat}</option>`;
+    entrySelect.innerHTML += `<option value="${cat}">${cat}</option>`;
+  });
+  checkCategoryField();
 }
 
 window.checkCategoryField = function() {
-const cat = document.getElementById("entryCategory").value;
-const dueDateGroup = document.getElementById("dueDateGroup");
-if (cat === "Invoice") {
-dueDateGroup.style.display = "block";
-} else {
-dueDateGroup.style.display = "none";
-}
+  const cat = document.getElementById("entryCategory").value;
+  const dueDateGroup = document.getElementById("dueDateGroup");
+  if (cat === "Invoice") {
+    dueDateGroup.style.display = "block";
+  } else {
+    dueDateGroup.style.display = "none";
+  }
 }
 
 function initRealtimeSync() {
-if (unsubscribeEntries) unsubscribeEntries();
-const q = query(collection(db, "transactions"), where("userId", "==", currentUid));
+  if (unsubscribeEntries) unsubscribeEntries();
+  const q = query(collection(db, "transactions"), where("userId", "==", currentUid));
 
-unsubscribeEntries = onSnapshot(q, async (snapshot) => {
-cachedEntries = [];
-snapshot.forEach(docSnap => {
-cachedEntries.push({ id: docSnap.id, ...docSnap.data() });
-});
+  unsubscribeEntries = onSnapshot(q, async (snapshot) => {
+    cachedEntries = [];
+    snapshot.forEach(docSnap => {
+      cachedEntries.push({ id: docSnap.id, ...docSnap.data() });
+    });
 
-try {
-const invoicesSnap = await getDocs(collection(db, "users", currentUid, "invoices"));
-cachedInvoices = [];
-invoicesSnap.forEach(docSnap => {
-cachedInvoices.push({ id: docSnap.id, ...docSnap.data() });
-});
-} catch (err) {
-console.error("Error fetching invoices:", err);
-}
+    try {
+      const invoicesSnap = await getDocs(collection(db, "users", currentUid, "invoices"));
+      cachedInvoices = [];
+      invoicesSnap.forEach(docSnap => {
+        cachedInvoices.push({ id: docSnap.id, ...docSnap.data() });
+      });
+    } catch (err) {
+      console.error("Error fetching invoices:", err);
+    }
 
-renderTransactions();
-}, (error) => {
-console.error("Error listening to transactions:", error);
-});
+    renderTransactions();
+  }, (error) => {
+    console.error("Error listening to transactions:", error);
+  });
 }
 
 window.changeYear = function(delta) {
-selectedYear += delta;
-document.getElementById("yearDisplay").textContent = selectedYear;
-renderTransactions();
+  selectedYear += delta;
+  document.getElementById("yearDisplay").textContent = selectedYear;
+  renderTransactions();
 };
 
 window.setTypeFilter = function(type, btnElement) {
-activeTypeFilter = type;
-document.querySelectorAll('.tab-btn').forEach(btn => btn.classList.remove('active'));
-btnElement.classList.add('active');
-renderTransactions();
+  activeTypeFilter = type;
+  document.querySelectorAll('.flex.bg-\\[\\#f0f4f1\\].p-1.rounded-full button').forEach(btn => {
+    btn.classList.remove('bg-white', 'text-[#1f302b]', 'shadow-sm');
+    btn.classList.add('text-[#697d75]');
+  });
+  btnElement.classList.add('bg-white', 'text-[#1f302b]', 'shadow-sm');
+  btnElement.classList.remove('text-[#697d75]');
+  renderTransactions();
 };
 
 function getInvoiceStatus(item) {
-const matched = cachedInvoices.find(inv => 
-(inv.number && item.desc && item.desc.includes(inv.number)) || 
-(inv.company && item.desc && item.desc.toLowerCase().includes(inv.company.toLowerCase())) ||
-(item.invoiceId && String(item.invoiceId) === String(inv.id))
-);
+  const matched = cachedInvoices.find(inv => 
+    (inv.number && item.desc && item.desc.includes(inv.number)) || 
+    (inv.company && item.desc && item.desc.toLowerCase().includes(inv.company.toLowerCase())) ||
+    (item.invoiceId && String(item.invoiceId) === String(inv.id))
+  );
 
-if (matched) {
-const today = new Date();
-today.setHours(0,0,0,0);
-const due = new Date(matched.dueDate);
-if (matched.status !== 'Paid' && due < today) return 'Overdue';
-return matched.status || 'Pending';
-}
-return item.status || 'Pending';
+  if (matched) {
+    const today = new Date();
+    today.setHours(0,0,0,0);
+    const due = new Date(matched.dueDate);
+    if (matched.status !== 'Paid' && due < today) return 'Overdue';
+    return matched.status || 'Pending';
+  }
+  return item.status || 'Pending';
 }
 
 window.renderTransactions = function() {
-const selectedCategory = document.getElementById("categoryFilter").value;
-const searchKeyword = document.getElementById("searchInput").value.trim().toLowerCase();
+  const selectedCategory = document.getElementById("categoryFilter").value;
+  const searchKeyword = document.getElementById("searchInput").value.trim().toLowerCase();
 
-let filtered = cachedEntries.filter(e => {
-if (!e.date) return false;
-const d = new Date(e.date);
-return d.getFullYear() === selectedYear;
-});
+  let filtered = cachedEntries.filter(e => {
+    if (!e.date) return false;
+    const d = new Date(e.date);
+    return d.getFullYear() === selectedYear;
+  });
 
-if (activeTypeFilter !== 'All') {
-filtered = filtered.filter(e => e.type === activeTypeFilter);
-}
+  if (activeTypeFilter !== 'All') {
+    filtered = filtered.filter(e => e.type === activeTypeFilter);
+  }
 
-if (selectedCategory !== 'All') {
-filtered = filtered.filter(e => e.category === selectedCategory);
-}
+  if (selectedCategory !== 'All') {
+    filtered = filtered.filter(e => e.category === selectedCategory);
+  }
 
-if (searchKeyword !== '') {
-filtered = filtered.filter(e => {
-const descMatch = e.desc && e.desc.toLowerCase().includes(searchKeyword);
-const amountMatch = e.amount && (parseFloat(e.amount).toFixed(2).toString().includes(searchKeyword) || e.amount.toString().includes(searchKeyword));
-return descMatch || amountMatch;
-});
-}
+  if (searchKeyword !== '') {
+    filtered = filtered.filter(e => {
+      const descMatch = e.desc && e.desc.toLowerCase().includes(searchKeyword);
+      const amountMatch = e.amount && (parseFloat(e.amount).toFixed(2).toString().includes(searchKeyword) || e.amount.toString().includes(searchKeyword));
+      return descMatch || amountMatch;
+    });
+  }
 
-filtered.sort((a, b) => new Date(b.date) - new Date(a.date));
-document.getElementById("transactionSubText").textContent = `${filtered.length} postings · Full Year ${selectedYear}`;
+  filtered.sort((a, b) => new Date(b.date) - new Date(a.date));
+  document.getElementById("transactionSubText").textContent = `${filtered.length} postings · Full Year ${selectedYear}`;
 
-const tbody = document.getElementById("transactionTableBody");
-tbody.innerHTML = "";
+  const tbody = document.getElementById("transactionTableBody");
+  tbody.innerHTML = "";
 
-if (filtered.length === 0) {
-tbody.innerHTML = `<tr><td colspan="4" style="text-align: center; color: #8e9f97; padding: 30px;">No transactions found for ${selectedYear}</td></tr>`;
-return;
-}
+  if (filtered.length === 0) {
+    tbody.innerHTML = `<tr><td colspan="4" class="text-center text-[#8e9f97] py-8 text-xs sm:text-sm">No transactions found for ${selectedYear}</td></tr>`;
+    return;
+  }
 
-filtered.forEach(e => {
-const tr = document.createElement("tr");
-tr.onclick = () => openEditModal(e.id);
+  filtered.forEach(e => {
+    const tr = document.createElement("tr");
+    tr.className = "cursor-pointer hover:bg-[#f7faf8] transition-colors border-b border-[#f5f7f5]";
+    tr.onclick = () => openEditModal(e.id);
 
-const dateObj = new Date(e.date);
-const formattedDate = isNaN(dateObj.getTime()) ? e.date : dateObj.toLocaleDateString('en-US', { month: 'short', day: '2-digit' });
+    const dateObj = new Date(e.date);
+    const formattedDate = isNaN(dateObj.getTime()) ? e.date : dateObj.toLocaleDateString('en-US', { month: 'short', day: '2-digit' });
 
-let catClass = 'cat-Default';
-if (['Sales', 'Invoice', 'Facilities', 'Logistics', 'Payroll'].includes(e.category)) {
-catClass = `cat-${e.category}`;
-} else if (e.category === 'Payment Received') {
-catClass = 'cat-PaymentReceived';
-}
+    let catClass = 'cat-Default';
+    if (['Sales', 'Invoice', 'Facilities', 'Logistics', 'Payroll'].includes(e.category)) {
+      catClass = `cat-${e.category}`;
+    } else if (e.category === 'Payment Received') {
+      catClass = 'cat-PaymentReceived';
+    }
 
-let dateDisplayHTML = formattedDate;
-let statusHTML = '';
+    let dateDisplayHTML = formattedDate;
+    let statusHTML = '';
 
-if (e.category === 'Invoice') {
-const dueDateStr = e.dueDate ? new Date(e.dueDate).toLocaleDateString('en-US', { month: 'short', day: '2-digit' }) : 'N/A';
-dateDisplayHTML = `<div style="font-size:12px;">Issued: ${formattedDate}</div><div style="font-size:11px; color:#d97706; font-weight:600;">Due: ${dueDateStr}</div>`;
+    if (e.category === 'Invoice') {
+      const dueDateStr = e.dueDate ? new Date(e.dueDate).toLocaleDateString('en-US', { month: 'short', day: '2-digit' }) : 'N/A';
+      dateDisplayHTML = `<div class="text-xs">Issued: ${formattedDate}</div><div class="text-[11px] text-[#d97706] font-semibold">Due: ${dueDateStr}</div>`;
+      const currentStatus = getInvoiceStatus(e);
+      const statusClass = `status-${currentStatus.toLowerCase()}`;
+      statusHTML = `<span class="status-tag ${statusClass} py-0.5 px-2 rounded-md text-[10px] font-bold ml-1.5 uppercase inline-block">${currentStatus}</span>`;
+    }
 
-const currentStatus = getInvoiceStatus(e);
-const statusClass = `status-${currentStatus.toLowerCase()}`;
-statusHTML = `<span class="status-tag ${statusClass}">${currentStatus}</span>`;
-}
-
-tr.innerHTML = `
-<td>${dateDisplayHTML}</td>
-<td style="font-weight: 600; color: #1f302b;">${e.desc}</td>
-<td>
-<span class="cat-tag ${catClass}">${e.category}</span>
-${statusHTML}
-</td>
-<td style="text-align: right;" class="${e.type === 'Income' ? 'amt-income' : 'amt-expense'}">
-${e.type === 'Income' ? '+' : '-'}RM ${parseFloat(e.amount || 0).toLocaleString('en-US', {minimumFractionDigits: 2, maximumFractionDigits: 2})}
-</td>
-`;
-tbody.appendChild(tr);
-});
+    tr.innerHTML = `
+      <td class="py-3.5 px-3 text-xs sm:text-sm">${dateDisplayHTML}</td>
+      <td class="py-3.5 px-3 font-semibold text-[#1f302b] text-xs sm:text-sm">${e.desc}</td>
+      <td class="py-3.5 px-3 text-xs">
+        <span class="cat-tag ${catClass} py-1 px-2.5 rounded-full text-[11px] font-semibold inline-block">${e.category}</span>
+        ${statusHTML}
+      </td>
+      <td class="py-3.5 px-3 text-right text-xs sm:text-sm ${e.type === 'Income' ? 'amt-income' : 'amt-expense'}">
+        ${e.type === 'Income' ? '+' : '-'}RM ${parseFloat(e.amount || 0).toLocaleString('en-US', {minimumFractionDigits: 2, maximumFractionDigits: 2})}
+      </td>
+    `;
+    tbody.appendChild(tr);
+  });
 };
 
 window.openAddModal = function() {
-document.getElementById("modalTitle").textContent = "Add New Entry";
-document.getElementById("editDocId").value = "";
-document.getElementById("saveBtn").textContent = "Save Entry";
-document.getElementById("deleteBtn").style.display = "none";
-document.querySelector("#entryModal form").reset();
-document.getElementById('entryDate').valueAsDate = new Date();
-document.getElementById('entryDueDate').valueAsDate = new Date();
-checkCategoryField();
-document.getElementById("entryModal").classList.add("active");
+  document.getElementById("modalTitle").textContent = "Add New Entry";
+  document.getElementById("editDocId").value = "";
+  document.getElementById("saveBtn").textContent = "Save Entry";
+  document.getElementById("deleteBtn").style.display = "none";
+  document.querySelector("#entryModal form").reset();
+  document.getElementById('entryDate').valueAsDate = new Date();
+  document.getElementById('entryDueDate').valueAsDate = new Date();
+  checkCategoryField();
+  document.getElementById("entryModal").classList.remove("hidden");
+  document.getElementById("entryModal").classList.add("flex");
 };
 
 window.openEditModal = function(docId) {
-const item = cachedEntries.find(e => e.id === docId);
-if (!item) return;
+  const item = cachedEntries.find(e => e.id === docId);
+  if (!item) return;
 
-document.getElementById("modalTitle").textContent = "Edit Entry";
-document.getElementById("editDocId").value = docId;
-document.getElementById("entryType").value = item.type || 'Income';
-document.getElementById("entryDesc").value = item.desc || '';
-document.getElementById("entryAmount").value = item.amount || '';
-document.getElementById("entryDate").value = item.date || '';
-document.getElementById("entryDueDate").value = item.dueDate || '';
-document.getElementById("entryCategory").value = item.category || 'Sales';
-checkCategoryField();
+  document.getElementById("modalTitle").textContent = "Edit Entry";
+  document.getElementById("editDocId").value = docId;
+  document.getElementById("entryType").value = item.type || 'Income';
+  document.getElementById("entryDesc").value = item.desc || '';
+  document.getElementById("entryAmount").value = item.amount || '';
+  document.getElementById("entryDate").value = item.date || '';
+  document.getElementById("entryDueDate").value = item.dueDate || '';
+  document.getElementById("entryCategory").value = item.category || 'Sales';
+  checkCategoryField();
 
-document.getElementById("saveBtn").textContent = "Update Entry";
-document.getElementById("deleteBtn").style.display = "block";
-document.getElementById("entryModal").classList.add("active");
+  document.getElementById("saveBtn").textContent = "Update Entry";
+  document.getElementById("deleteBtn").style.display = "block";
+  document.getElementById("entryModal").classList.remove("hidden");
+  document.getElementById("entryModal").classList.add("flex");
 };
 
 window.saveEntry = async function(event) {
-event.preventDefault();
-const editDocId = document.getElementById("editDocId").value;
-const category = document.getElementById("entryCategory").value;
+  event.preventDefault();
+  const editDocId = document.getElementById("editDocId").value;
+  const category = document.getElementById("entryCategory").value;
 
-const entryData = {
-userId: currentUid,
-type: document.getElementById("entryType").value,
-desc: document.getElementById("entryDesc").value,
-amount: parseFloat(document.getElementById("entryAmount").value) || 0,
-date: document.getElementById("entryDate").value,
-dueDate: category === 'Invoice' ? document.getElementById("entryDueDate").value : "",
-category: category,
-createdAt: new Date().toISOString()
+  const entryData = {
+    userId: currentUid,
+    type: document.getElementById("entryType").value,
+    desc: document.getElementById("entryDesc").value,
+    amount: parseFloat(document.getElementById("entryAmount").value) || 0,
+    date: document.getElementById("entryDate").value,
+    dueDate: category === 'Invoice' ? document.getElementById("entryDueDate").value : "",
+    category: category,
+    createdAt: new Date().toISOString()
+  };
+
+  try {
+    if (!editDocId) {
+      await addDoc(collection(db, "transactions"), entryData);
+    } else {
+      await updateDoc(doc(db, "transactions", editDocId), entryData);
+    }
+    closeModal();
+  } catch (error) {
+    console.error("Error saving entry to cloud:", error);
+    alert("Failed to save entry: " + error.message);
+  }
 };
 
-try {
-if (!editDocId) {
-await addDoc(collection(db, "transactions"), entryData);
-} else {
-await updateDoc(doc(db, "transactions", editDocId), entryData);
-}
-closeModal();
-} catch (error) {
-console.error("Error saving entry to cloud:", error);
-alert("Failed to save entry: " + error.message);
-}
-};
-
-// 终极直接删除版
 window.deleteTransaction = async function() {
-const editDocId = document.getElementById("editDocId").value;
+  const editDocId = document.getElementById("editDocId").value;
+  if (!editDocId) {
+    alert("错误：当前表单没有获取到任何 ID！");
+    return;
+  }
 
-if (!editDocId) {
-alert("错误：当前表单没有获取到任何 ID！");
-return;
-}
+  const reason = prompt("Please enter the reason for deletion:");
+  if (reason === null) return; 
 
-const reason = prompt("Please enter the reason for deletion:");
-if (reason === null) return; 
+  try {
+    const deletedItem = cachedEntries.find(e => e.id === editDocId) || {};
+    await deleteDoc(doc(db, "transactions", editDocId));
 
-try {
-const deletedItem = cachedEntries.find(e => e.id === editDocId) || {};
+    try {
+      await addDoc(collection(db, "history"), {
+        userId: currentUid,
+        action: 'Delete Entry',
+        entry: {
+          title: deletedItem.desc || 'Transaction Entry',
+          desc: deletedItem.desc || 'Transaction Entry',
+          amount: deletedItem.amount || 0,
+          type: deletedItem.type || 'Expense',
+          category: deletedItem.category || 'Others',
+          date: deletedItem.date || new Date().toISOString()
+        },
+        reason: reason.trim() || 'No reason provided',
+        timestamp: new Date().getTime(),
+        deletedAtDate: new Date().toLocaleString()
+      });
+    } catch (historyError) {
+      console.error("History log error:", historyError);
+    }
 
-// 直接执行云端删除
-await deleteDoc(doc(db, "transactions", editDocId));
-
-// 尝试写入历史日志
-try {
-await addDoc(collection(db, "history"), {
-userId: currentUid,
-action: 'Delete Entry',
-entry: {
-title: deletedItem.desc || 'Transaction Entry',
-desc: deletedItem.desc || 'Transaction Entry',
-amount: deletedItem.amount || 0,
-type: deletedItem.type || 'Expense',
-category: deletedItem.category || 'Others',
-date: deletedItem.date || new Date().toISOString()
-},
-reason: reason.trim() || 'No reason provided',
-timestamp: new Date().getTime(),
-deletedAtDate: new Date().toLocaleString()
-});
-} catch (historyError) {
-console.error("History log error:", historyError);
-}
-
-closeModal();
-alert("删除成功！");
-location.reload(); 
-
-} catch (error) {
-alert("删除失败，报错信息: " + error.message);
-}
+    closeModal();
+    alert("删除成功！");
+    location.reload(); 
+  } catch (error) {
+    alert("删除失败，报错信息: " + error.message);
+  }
 };
 
 window.closeModal = function() { 
-document.getElementById("entryModal").classList.remove("active"); 
+  document.getElementById("entryModal").classList.add("hidden");
+  document.getElementById("entryModal").classList.remove("flex");
 };
 </script>
 
